@@ -1,0 +1,150 @@
+{
+    "upgrades": [
+        {
+            "name": "Coffee Machine",
+            "category": "coffee",
+            "id": 0,
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Simple Coffee Machine (Made in China)",
+                    "description": "It makes coffee!",
+                    "icon": "coffee-machine-1.png",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 100,
+                    "rate": 1,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Better Coffee Machine (Deluxe 3000)",
+                    "description": "The latest in coffee technology!",
+                    "icon": "coffee-machine-2.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 500,
+                    "rate": 2,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Modern Coffee Machine (AI Powered)",
+                    "description": "Everything is better with AI, right?",
+                    "icon": "coffee-machine-3.png",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 1000,
+                    "rate": 3,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Super Coffe Machine (with 5'in screen)",
+                    "description": "Can finally broadcast your coffee making skills to the world!",
+                    "icon": "coffee-machine-4.png",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 3000,
+                    "rate": 4,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 5,
+                    "name": "Ultimate Coffee Machine (Automatic)",
+                    "description": "Just say the word and it will make you coffee!",
+                    "icon": "coffee-machine-5.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 7000,
+                    "rate": 5,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 6,
+                    "name": "Ultimate Coffee Machine (Pro-max)",
+                    "description": "The best coffee machine in the world (probably)",
+                    "icon": "coffee-machine-6.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 10000,
+                    "rate": 6,
+                    "levelPriceRate": 3.0
+                }
+            ]
+        },
+        {
+            "name": "Office Chair",
+            "category": "chair",
+            "id": 1,
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Basic chair",
+                    "description": "You can sit on it!",
+                    "icon": "chair-1.png",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 100,
+                    "rate": 1,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Comfortable chair",
+                    "description": "Finally your back doesnt hurt (as much..)",
+                    "icon": "chair-2.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 15,
+                    "price": 500,
+                    "rate": 2,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Modern Chair",
+                    "description": "This chair makes you look cool!",
+                    "icon": "chair-3.png",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 1000,
+                    "rate": 3,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Ergonomic Chair",
+                    "description": "Chair with an agressive stance that will make you work harder!",
+                    "icon": "chair-4.png",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 3000,
+                    "rate": 4,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 5,
+                    "name": "Modern colorful chair (with massage)",
+                    "description": "This chair will make you feel like a king!",
+                    "icon": "chair-5.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 7000,
+                    "rate": 5,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 6,
+                    "name": "Final boss chair",
+                    "description": "The best chair in the world (probably)",
+                    "icon": "chair-6.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 10000,
+                    "rate": 6,
+                    "levelPriceRate": 3.0
+                }
+            ]
+        }
+    ]
+}
