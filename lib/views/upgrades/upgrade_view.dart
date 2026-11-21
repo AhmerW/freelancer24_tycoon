@@ -22,6 +22,9 @@ class UpgradeView extends StatelessWidget {
         UpgradeEffect.income => 'INCOME',
         UpgradeEffect.energyRegen => 'ENERGY REFILL',
         UpgradeEffect.contractSpeed => 'JOB SPEED',
+        UpgradeEffect.offerSpeed => 'CLIENT FLOW',
+        UpgradeEffect.energySaver => 'LESS ENERGY',
+        UpgradeEffect.clientPay => 'CLIENT PAY',
       };
 
   @override
@@ -82,9 +85,11 @@ class UpgradeView extends StatelessWidget {
                       ),
                       border: Border.all(color: GameColors.ink, width: 2),
                     ),
-                    child: Image.asset(
-                      'assets/icons/upgrades/${line.category}/${item.icon}',
-                    )
+                    child: (item.icon.endsWith('.png')
+                            ? Image.asset(
+                                'assets/icons/upgrades/${line.category}/${item.icon}')
+                            : SkillIcon(item.icon,
+                                size: 60, color: tone.bottom))
                         .animate(
                             key: ValueKey(item.id),
                             onPlay: (c) => c.repeat(reverse: true))

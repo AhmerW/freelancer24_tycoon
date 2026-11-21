@@ -77,6 +77,22 @@ class CampaignEffects {
   static const none = CampaignEffects();
 }
 
+/// Where the player is in the daily reward cycle.
+class DailyRewardStatus {
+  /// Whether a reward can be claimed right now.
+  final bool available;
+
+  /// The day of the 7-day cycle (1-7) that is claimable now, or that was
+  /// claimed today when not [available].
+  final int day;
+
+  /// Days in a row, counting today's claim if [available].
+  final int streak;
+
+  const DailyRewardStatus(
+      {required this.available, required this.day, required this.streak});
+}
+
 /// All game rules. Pure Dart, no Flutter: every method takes a state and
 /// returns a new one, so the whole economy can be unit-tested.
 class GameEngine {
@@ -115,9 +131,31 @@ class GameEngine {
   // ===========================================================================
 
   /// Passive income of one skill at [level], before upgrade bonuses.
+  /// Includes milestone multipliers.
   double skillIncome(SkillDef skill, int level) {
     final decay = pow(Balance.skillIncomeDecay, skill.rank);
-    return skill.price * skill.rate / 100 / decay * level;
+    return skill.price *
+        skill.rate /
+        100 /
+        decay *
+        level *
+        milestoneMultiplier(level);
+  }
+
+  /// How many milestones a skill at [level] has passed.
+  int milestonesReached(int level) =>
+      Balance.skillMilestones.where((m) => level >= m).length;
+
+  /// Income multiplier from milestones at [level] (1, 2, 4, 8...).
+  double milestoneMultiplier(int level) =>
+      pow(Balance.milestoneMultiplier, milestonesReached(level)).toDouble();
+
+  /// The next milestone level above [level], or null after the last one.
+  int? nextMilestone(int level) {
+    for (final m in Balance.skillMilestones) {
+      if (m > level) return m;
+    }
+    return null;
   }
 
   double baseIncomePerSecond(GameState s) {
@@ -136,6 +174,18 @@ class GameEngine {
   double energyRegenPerSecond(GameState s) =>
       Balance.energyRegenPerSecond *
       (1 + upgradeBonus(s, UpgradeEffect.energyRegen) / 100);
+
+  /// New offers arrive this many times faster. 1 = no speed-up.
+  double offerSpeedMultiplier(GameState s) =>
+      1 + upgradeBonus(s, UpgradeEffect.offerSpeed) / 100;
+
+  /// New offers cost `energy / this`. 1 = no saving.
+  double energySaverMultiplier(GameState s) =>
+      1 + upgradeBonus(s, UpgradeEffect.energySaver) / 100;
+
+  /// New offers pay this many times more.
+  double clientPayMultiplier(GameState s) =>
+      1 + upgradeBonus(s, UpgradeEffect.clientPay) / 100;
 
   /// New offers take `base duration / this`. 1 = no speed-up.
   double contractSpeedMultiplier(GameState s) =>
@@ -323,7 +373,57 @@ class GameEngine {
   /// Wait between new offers in [locationId], campaigns included.
   Duration offerCooldownAt(GameState s, int locationId, DateTime now) =>
       Balance.offerCooldown *
-      campaignEffects(s, locationId, now).offerCooldownMultiplier;
+      (campaignEffects(s, locationId, now).offerCooldownMultiplier /
+          offerSpeedMultiplier(s));
+
+  // ---- Daily reward ---------------------------------------------------------
+
+  static DateTime _day(DateTime t) => DateTime.utc(t.year, t.month, t.day);
+
+  DailyRewardStatus dailyRewardStatus(GameState s, DateTime now) {
+    final last = s.lastDailyClaim;
+    if (last == null) {
+      return const DailyRewardStatus(available: true, day: 1, streak: 1);
+    }
+    final gap = _day(now).difference(_day(last)).inDays;
+    if (gap <= 0) {
+      return DailyRewardStatus(
+          available: false,
+          day: (s.dailyStreak - 1) % 7 + 1,
+          streak: s.dailyStreak);
+    }
+    if (gap == 1) {
+      return DailyRewardStatus(
+          available: true,
+          day: s.dailyStreak % 7 + 1,
+          streak: s.dailyStreak + 1);
+    }
+    // Missed a day: the streak starts over.
+    return const DailyRewardStatus(available: true, day: 1, streak: 1);
+  }
+
+  /// Cash paid on [day] (1-7) of the cycle at the current income.
+  double dailyRewardCash(GameState s, int day) => max(
+      Balance.dailyRewardMin[day - 1],
+      incomePerSecond(s) * Balance.dailyRewardIncomeSeconds[day - 1]);
+
+  bool dailyRewardRefillsEnergy(int day) =>
+      Balance.dailyRewardEnergyDays.contains(day);
+
+  GameState claimDailyReward(GameState s, DateTime now) {
+    final status = dailyRewardStatus(s, now);
+    if (!status.available) {
+      throw const GameRuleException('Come back tomorrow for your next reward!');
+    }
+    return s.copyWith(
+      balance: s.balance + dailyRewardCash(s, status.day),
+      energy: dailyRewardRefillsEnergy(status.day)
+          ? max(s.energy, Balance.maxEnergy)
+          : s.energy,
+      dailyStreak: status.streak,
+      lastDailyClaim: now,
+    );
+  }
 
   // ---- Achievements ---------------------------------------------------------
 
@@ -733,10 +833,12 @@ class GameEngine {
       stats: paid.stats.copyWith(campaignsRun: paid.stats.campaignsRun + 1),
     );
     if (campaign.extraOffers > 0) {
-      // The extra clients show up right away.
+      // The extra clients show up right away. One step of slack keeps
+      // fractional cooldowns from rounding the last offer just past `now`
+      // (the refill never goes beyond the max anyway).
       final p = next.locations[locationId]!;
       final earliest = now.subtract(
-          offerCooldownAt(next, locationId, now) * (campaign.extraOffers - 1));
+          offerCooldownAt(next, locationId, now) * campaign.extraOffers);
       next = next.copyWith(
         locations: Map.unmodifiable({
           ...next.locations,
@@ -882,6 +984,7 @@ class GameEngine {
     final pay = (Balance.contractBasePay +
             incomePerSecond(s) * baseSeconds * Balance.contractIncomeMultiple) *
         effects.payMultiplier *
+        clientPayMultiplier(s) *
         location.rate *
         (1 + Balance.extraPersonPayBonus * (people - 1)) *
         (1 + Balance.perRequirementPayBonus * requirements.length) *
@@ -894,9 +997,14 @@ class GameEngine {
       message: _pick(location.messages),
       pay: pay,
       duration: duration,
-      energy: Balance.contractEnergyMin +
-          _random.nextInt(
-              Balance.contractEnergyMax - Balance.contractEnergyMin + 1),
+      energy: max(
+          1,
+          ((Balance.contractEnergyMin +
+                      _random.nextInt(Balance.contractEnergyMax -
+                          Balance.contractEnergyMin +
+                          1)) /
+                  energySaverMultiplier(s))
+              .round()),
       requiredPeople: people,
       requirements: List.unmodifiable(requirements),
       golden: golden,

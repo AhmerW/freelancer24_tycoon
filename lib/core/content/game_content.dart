@@ -113,7 +113,18 @@ class TrackDef {
 /// is still computed from the unshortened duration, so the bonus raises pay
 /// per second. Applied when an offer is generated (offers already on the
 /// board keep their duration).
-enum UpgradeEffect { income, energyRegen, contractSpeed }
+///
+/// [offerSpeed]: new offers arrive `1 + bonus / 100` times faster.
+/// [energySaver]: new offers cost `energy / (1 + bonus / 100)` (at least 1).
+/// [clientPay]: new offers pay `1 + bonus / 100` times more.
+enum UpgradeEffect {
+  income,
+  energyRegen,
+  contractSpeed,
+  offerSpeed,
+  energySaver,
+  clientPay,
+}
 
 class UpgradeItemDef {
   final int id;

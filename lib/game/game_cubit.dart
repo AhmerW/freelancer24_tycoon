@@ -178,6 +178,15 @@ class GameCubit extends Cubit<GameState> {
     return ok ? state.balance - before : null;
   }
 
+  DailyRewardStatus get dailyReward => engine.dailyRewardStatus(state, now());
+
+  /// Claims today's daily reward; returns the cash paid, or null.
+  double? claimDailyReward() {
+    final before = state.balance;
+    final ok = _run((s) => engine.claimDailyReward(s, now()));
+    return ok ? state.balance - before : null;
+  }
+
   Future<void> resetGame() async {
     await _saves.clear();
     emit(engine.newGame(now()));

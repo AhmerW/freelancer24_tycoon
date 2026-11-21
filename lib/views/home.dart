@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/game/sfx.dart';
+import 'package:freelancer24_tycoon/views/daily/daily_reward_dialog.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/goals/goals_view.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
@@ -23,6 +24,19 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   int _tab = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // Greet returning players with their daily reward.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted && context.read<GameCubit>().dailyReward.available) {
+          showDailyReward(context);
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

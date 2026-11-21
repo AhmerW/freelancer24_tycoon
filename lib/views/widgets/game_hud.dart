@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/engine/balance.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/daily/daily_reward_dialog.dart';
 import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
@@ -40,6 +41,8 @@ class GameHud extends StatelessWidget {
                 const SizedBox(width: 10),
                 const EnergyPill(),
                 const SizedBox(width: 8),
+                const DailyRewardButton(),
+                const SizedBox(width: 6),
                 GameButton(
                   tone: GameTone.blue,
                   height: 40,

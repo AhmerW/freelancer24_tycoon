@@ -6,7 +6,14 @@ import 'package:freelancer24_tycoon/views/upgrades/upgrade_view.dart';
 import 'package:freelancer24_tycoon/views/world/stats_view.dart';
 
 class UpgradesView extends StatelessWidget {
-  static const _tones = [GameTone.red, GameTone.blue, GameTone.purple];
+  static const _tones = [
+    GameTone.red,
+    GameTone.blue,
+    GameTone.purple,
+    GameTone.green,
+    GameTone.yellow,
+    GameTone(Color(0xFF7FE3E0), Color(0xFF14A3A0), Color(0xFF0B6E6C)),
+  ];
 
   const UpgradesView({super.key});
 

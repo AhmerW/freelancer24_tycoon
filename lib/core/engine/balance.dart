@@ -9,11 +9,34 @@ abstract final class Balance {
 
   /// Each later skill earns this much less per dollar spent than the previous
   /// one. Higher = slower game.
-  static const double skillIncomeDecay = 1.9;
+  static const double skillIncomeDecay = 2.1;
 
   /// Level-up cost grows by `base + levelPriceRate * perRate` per level.
   static const double skillCostGrowthBase = 1.08;
   static const double skillCostGrowthPerRate = 0.03;
+
+  /// Skill levels at which that skill's income doubles (milestones).
+  static const List<int> skillMilestones = [10, 25, 50, 100, 150, 200, 300];
+  static const double milestoneMultiplier = 2;
+
+  // ---- Daily reward --------------------------------------------------------
+
+  /// A 7-day cycle. Each day pays this many seconds of current income...
+  static const List<double> dailyRewardIncomeSeconds = [
+    120,
+    240,
+    360,
+    600,
+    900,
+    1200,
+    3600,
+  ];
+
+  /// ...but at least this much.
+  static const List<double> dailyRewardMin = [25, 50, 100, 150, 250, 400, 1000];
+
+  /// Days (1-7) that also refill energy.
+  static const Set<int> dailyRewardEnergyDays = {3, 7};
 
   // ---- Upgrades ------------------------------------------------------------
 

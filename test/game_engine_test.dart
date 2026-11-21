@@ -42,11 +42,7 @@ void main() {
 
     test('upgrade lines have an effect each', () {
       final effects = content.upgradeLines.map((l) => l.effect).toSet();
-      expect(effects, {
-        UpgradeEffect.income,
-        UpgradeEffect.energyRegen,
-        UpgradeEffect.contractSpeed,
-      });
+      expect(effects, UpgradeEffect.values.toSet());
     });
   });
 
@@ -599,7 +595,11 @@ void main() {
       s = engine.advance(s, t0.add(const Duration(seconds: 1))).state;
       final full = s.offersAt(berlin).length;
       final cooldown = engine.offerCooldownAt(s, berlin, t0);
-      expect(cooldown, Balance.offerCooldown * radio.offerCooldownMultiplier);
+      // Radio stacks with the internet line's (small, starting) bonus.
+      expect(
+          cooldown,
+          Balance.offerCooldown *
+              (radio.offerCooldownMultiplier / engine.offerSpeedMultiplier(s)));
 
       final now = t0.add(const Duration(seconds: 1));
       s = engine.rejectOffer(s, s.offersAt(berlin).first.id, now);
@@ -795,6 +795,134 @@ void main() {
       });
       final ids = engine.checkAchievements(s).unlocked.map((a) => a.id);
       expect(ids, containsAll(['cities_2', 'track_web', 'skills_3']));
+    });
+  });
+
+  group('skill milestones', () {
+    test('income doubles at each milestone level', () {
+      final html = content.startingSkill;
+      final at9 = engine.skillIncome(html, 9);
+      final at10 = engine.skillIncome(html, 10);
+      expect(at10, closeTo(at9 / 9 * 10 * 2, 1e-12));
+      expect(engine.milestoneMultiplier(24), 2);
+      expect(engine.milestoneMultiplier(25), 4);
+      expect(engine.nextMilestone(1), 10);
+      expect(engine.nextMilestone(25), 50);
+      expect(engine.nextMilestone(1000), isNull);
+    });
+  });
+
+  group('new upgrade lines', () {
+    UpgradeLineDef lineFor(UpgradeEffect e) =>
+        content.upgradeLines.firstWhere((l) => l.effect == e);
+
+    /// One fresh offer in Berlin for [s], with a fixed random seed.
+    Contract freshOffer(GameState s, {int seed = 3}) {
+      final e = testEngine(seed: seed);
+      final berlin = content.startingLocation.id;
+      final cleared = s.copyWith(contracts: const [], lastTick: t0);
+      final next = e.advance(cleared, t0.add(const Duration(seconds: 1))).state;
+      return next.offersAt(berlin).single;
+    }
+
+    GameState levelUp(GameState s, UpgradeLineDef line, int times) {
+      for (var i = 0; i < times; i++) {
+        s = engine.upgradeItemLevel(s, line.id);
+      }
+      return s;
+    }
+
+    test('there are six lines, each with an effect of its own', () {
+      expect(content.upgradeLines, hasLength(6));
+      expect(content.upgradeLines.map((l) => l.effect).toSet(), hasLength(6));
+    });
+
+    test('internet makes offers arrive faster', () {
+      final base = rich(engine.newGame(t0));
+      final berlin = content.startingLocation.id;
+      final before = engine.offerCooldownAt(base, berlin, t0);
+      final s = levelUp(base, lineFor(UpgradeEffect.offerSpeed), 5);
+      expect(engine.offerCooldownAt(s, berlin, t0), lessThan(before));
+    });
+
+    test('headphones make new jobs cost less energy', () {
+      final base = rich(engine.newGame(t0));
+      final s = levelUp(base, lineFor(UpgradeEffect.energySaver), 9);
+      final plain = freshOffer(base);
+      final saved = freshOffer(s);
+      expect(saved.energy, lessThanOrEqualTo(plain.energy));
+      expect(
+          saved.energy,
+          (plain.energy / engine.energySaverMultiplier(s))
+              .round()
+              .clamp(1, 99));
+    });
+
+    test('a portfolio makes clients pay more', () {
+      final base = rich(engine.newGame(t0));
+      final s = levelUp(base, lineFor(UpgradeEffect.clientPay), 5);
+      final plain = freshOffer(base);
+      final better = freshOffer(s);
+      expect(
+          better.pay,
+          closeTo(
+              plain.pay *
+                  engine.clientPayMultiplier(s) /
+                  engine.clientPayMultiplier(base),
+              1e-6));
+    });
+  });
+
+  group('daily reward', () {
+    final day1 = DateTime(2026, 3, 2, 9);
+
+    test('the first reward is day 1 and only once per day', () {
+      var s = engine.newGame(day1);
+      expect(engine.dailyRewardStatus(s, day1).available, isTrue);
+      final before = s.balance;
+      s = engine.claimDailyReward(s, day1);
+      expect(s.balance, before + engine.dailyRewardCash(s, 1));
+      expect(s.dailyStreak, 1);
+      expect(
+          engine
+              .dailyRewardStatus(s, day1.add(const Duration(hours: 10)))
+              .available,
+          isFalse);
+      expect(() => engine.claimDailyReward(s, day1),
+          throwsA(isA<GameRuleException>()));
+    });
+
+    test('coming back the next day continues the streak', () {
+      var s = engine.claimDailyReward(engine.newGame(day1), day1);
+      final tomorrow = day1.add(const Duration(days: 1, hours: -8));
+      final status = engine.dailyRewardStatus(s, tomorrow);
+      expect(status.available, isTrue);
+      expect(status.day, 2);
+      s = engine.claimDailyReward(s, tomorrow);
+      expect(s.dailyStreak, 2);
+    });
+
+    test('missing a day starts over at day 1', () {
+      final s = engine.claimDailyReward(engine.newGame(day1), day1);
+      final status =
+          engine.dailyRewardStatus(s, day1.add(const Duration(days: 2)));
+      expect(status.day, 1);
+      expect(status.streak, 1);
+    });
+
+    test('the cycle wraps after 7 days; days 3 and 7 refill energy', () {
+      var s = engine.newGame(day1);
+      for (var d = 0; d < 7; d++) {
+        final now = day1.add(Duration(days: d));
+        final status = engine.dailyRewardStatus(s, now);
+        expect(status.day, d + 1);
+        s = engine.claimDailyReward(s.copyWith(energy: 0), now);
+        expect(s.energy, engine.dailyRewardRefillsEnergy(d + 1) ? 100 : 0);
+      }
+      final day8 =
+          engine.dailyRewardStatus(s, day1.add(const Duration(days: 7)));
+      expect(day8.day, 1);
+      expect(day8.streak, 8);
     });
   });
 }

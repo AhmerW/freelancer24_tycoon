@@ -100,6 +100,10 @@ GameState _playTurn(
 ) {
   final content = engine.content;
 
+  if (engine.dailyRewardStatus(s, now).available) {
+    s = engine.claimDailyReward(s, now);
+  }
+
   for (final c in s.contracts.where((c) => c.isCompleted).toList()) {
     s = engine.collectContract(s, c.id);
   }

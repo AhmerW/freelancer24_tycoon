@@ -99,6 +99,19 @@ const Map<String, IconData> skillMaterialIcons = {
   'payments': Icons.payments,
   'bolt': Icons.bolt,
   'location_city': Icons.location_city,
+  'wifi': Icons.wifi,
+  'router': Icons.router,
+  'lan': Icons.lan,
+  'cell_tower': Icons.cell_tower,
+  'satellite_alt': Icons.satellite_alt,
+  'hub': Icons.hub,
+  'headphones': Icons.headphones,
+  'headset': Icons.headset,
+  'headset_mic': Icons.headset_mic,
+  'spatial_audio': Icons.spatial_audio,
+  'person': Icons.person,
+  'language': Icons.language,
+  'card_giftcard': Icons.card_giftcard,
 };
 
 /// Price label with a coin, for buttons.
@@ -138,6 +151,14 @@ class SkillCard extends StatelessWidget {
   final bool Function() onPressed;
   final Color accent;
 
+  /// Income multiplier from milestones reached (1, 2, 4...).
+  final double milestoneMultiplier;
+
+  /// Milestone level already passed (0 if none) and the next one (null after
+  /// the last).
+  final int previousMilestone;
+  final int? nextMilestone;
+
   const SkillCard({
     super.key,
     required this.skill,
@@ -149,6 +170,9 @@ class SkillCard extends StatelessWidget {
     required this.incomeGain,
     required this.onPressed,
     required this.accent,
+    this.milestoneMultiplier = 1,
+    this.previousMilestone = 0,
+    this.nextMilestone,
   });
 
   @override
@@ -179,6 +203,22 @@ class SkillCard extends StatelessWidget {
                         child: SkillIcon(skill.icon, size: 38),
                       ),
               ),
+              if (unlocked && milestoneMultiplier > 1)
+                Positioned(
+                  top: -8,
+                  right: -8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    decoration: BoxDecoration(
+                      color: GameColors.bad,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: StrokeText(
+                        'x${milestoneMultiplier.toStringAsFixed(0)}',
+                        size: 12),
+                  ),
+                ),
               if (unlocked)
                 Positioned(
                   bottom: -8,
@@ -219,10 +259,20 @@ class SkillCard extends StatelessWidget {
                             : GameColors.ink,
                   ),
                 ),
+                if (unlocked && nextMilestone != null) ...[
+                  const SizedBox(height: 4),
+                  GameProgressBar(
+                    value: (level - previousMilestone) /
+                        (nextMilestone! - previousMilestone),
+                    tone: GameTone.yellow,
+                    height: 16,
+                    label: 'x2 INCOME AT LV $nextMilestone',
+                  ),
+                ],
                 if (!teaser) ...[
                   const SizedBox(height: 3),
                   Text(
-                    '+${dollar(incomeGain)}/s ${unlocked ? 'per level' : 'when learned'}',
+                    '+${dollar(incomeGain)}/s ${unlocked ? 'next level' : 'when learned'}',
                     style: GameFonts.body(
                         size: 12, color: const Color(0xFF2B8A1C)),
                   ),
@@ -242,7 +292,11 @@ class SkillCard extends StatelessWidget {
                     ? () {
                         if (!onPressed()) return;
                         final fx = Fx.of(buttonContext);
-                        if (unlocked) {
+                        if (unlocked && level + 1 == nextMilestone) {
+                          fx.floatText(buttonContext, 'MASTERY x2!',
+                              color: GameColors.gold, size: 30);
+                          fx.confetti(buttonContext);
+                        } else if (unlocked) {
                           fx.floatText(buttonContext, 'LEVEL ${level + 1}!',
                               sound: Sound.levelup, color: GameColors.gold);
                         } else {

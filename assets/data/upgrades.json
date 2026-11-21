@@ -40,7 +40,7 @@
                 },
                 {
                     "id": 3,
-                    "name": "Super Coffe Machine (with 5'in screen)",
+                    "name": "Super Coffee Machine (with a 5\" screen)",
                     "description": "Can finally broadcast your coffee making skills to the world!",
                     "icon": "coffee-machine-4.png",
                     "tier": 4,
@@ -221,6 +221,225 @@
                 }
             ],
             "effect": "contractSpeed"
+        },
+        {
+            "id": 3,
+            "category": "internet",
+            "effect": "offerSpeed",
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Neighbor's Wi-Fi",
+                    "description": "Free internet! Until they change the password.",
+                    "icon": "wifi",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 150,
+                    "rate": 2,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Basic Home Plan",
+                    "description": "Emails arrive before lunch. Usually.",
+                    "icon": "router",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 4000,
+                    "rate": 3,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Fiber Connection",
+                    "description": "Clients find you at the speed of light.",
+                    "icon": "lan",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 150000,
+                    "rate": 4,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Business Line",
+                    "description": "No buffering. Ever. Clients notice.",
+                    "icon": "cell_tower",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 6000000,
+                    "rate": 5,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 4,
+                    "name": "Satellite Uplink",
+                    "description": "Clients from every corner of the planet.",
+                    "icon": "satellite_alt",
+                    "tier": 5,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 250000000,
+                    "rate": 6,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 5,
+                    "name": "Private Data Center",
+                    "description": "The whole internet runs through your desk.",
+                    "icon": "hub",
+                    "tier": 6,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 10000000000,
+                    "rate": 8,
+                    "levelPriceRate": 3.0
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "category": "headphones",
+            "effect": "energySaver",
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Tangled Earbuds",
+                    "description": "Half the cable is knots. Still blocks some noise.",
+                    "icon": "headphones",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 150,
+                    "rate": 2,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Comfy Headphones",
+                    "description": "Your playlist, your zone, less tired.",
+                    "icon": "headphones",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 4000,
+                    "rate": 3,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Noise Cancelling",
+                    "description": "Total focus. The world can wait.",
+                    "icon": "headset",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 150000,
+                    "rate": 4,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Studio Monitors",
+                    "description": "Crystal sound keeps you fresh for hours.",
+                    "icon": "headset_mic",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 6000000,
+                    "rate": 5,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 4,
+                    "name": "Wireless Pro Set",
+                    "description": "Pace around, think big, stay energized.",
+                    "icon": "spatial_audio",
+                    "tier": 5,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 250000000,
+                    "rate": 6,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 5,
+                    "name": "Brainwave Focus Band",
+                    "description": "Pure flow state. Work feels like a game.",
+                    "icon": "psychology",
+                    "tier": 6,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 10000000000,
+                    "rate": 8,
+                    "levelPriceRate": 3.0
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "category": "portfolio",
+            "effect": "clientPay",
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Social Media Bio",
+                    "description": "A link in your bio. It's a start!",
+                    "icon": "person",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 150,
+                    "rate": 2,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Free Website",
+                    "description": "Your name, a template and some screenshots.",
+                    "icon": "web",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 4000,
+                    "rate": 3,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Custom Domain",
+                    "description": "yourname-dot-com. Clients take you seriously.",
+                    "icon": "language",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 150000,
+                    "rate": 4,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Case Studies",
+                    "description": "Before and after. Numbers. Happy quotes.",
+                    "icon": "insights",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 6000000,
+                    "rate": 5,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 4,
+                    "name": "Award-Winning Showcase",
+                    "description": "Shiny trophies on every page.",
+                    "icon": "emoji_events",
+                    "tier": 5,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 250000000,
+                    "rate": 6,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 5,
+                    "name": "Legendary Reputation",
+                    "description": "Clients line up and don't ask about price.",
+                    "icon": "workspace_premium",
+                    "tier": 6,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 10000000000,
+                    "rate": 8,
+                    "levelPriceRate": 3.0
+                }
+            ]
         }
     ]
 }

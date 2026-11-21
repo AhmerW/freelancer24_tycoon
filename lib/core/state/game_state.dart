@@ -474,6 +474,12 @@ class GameState {
   /// [achievementsUnlocked].
   final Set<String> achievementsClaimed;
 
+  /// Daily reward: days in a row claimed so far (0 = never).
+  final int dailyStreak;
+
+  /// When the last daily reward was claimed.
+  final DateTime? lastDailyClaim;
+
   const GameState({
     required this.balance,
     required this.energy,
@@ -489,6 +495,8 @@ class GameState {
     this.campaigns = const [],
     this.achievementsUnlocked = const {},
     this.achievementsClaimed = const {},
+    this.dailyStreak = 0,
+    this.lastDailyClaim,
   });
 
   // ---- Queries -------------------------------------------------------------
@@ -558,6 +566,8 @@ class GameState {
     List<ActiveCampaign>? campaigns,
     Set<String>? achievementsUnlocked,
     Set<String>? achievementsClaimed,
+    int? dailyStreak,
+    DateTime? lastDailyClaim,
   }) =>
       GameState(
         balance: balance ?? this.balance,
@@ -574,6 +584,8 @@ class GameState {
         campaigns: campaigns ?? this.campaigns,
         achievementsUnlocked: achievementsUnlocked ?? this.achievementsUnlocked,
         achievementsClaimed: achievementsClaimed ?? this.achievementsClaimed,
+        dailyStreak: dailyStreak ?? this.dailyStreak,
+        lastDailyClaim: lastDailyClaim ?? this.lastDailyClaim,
       );
 
   // ---- Serialization -------------------------------------------------------
@@ -598,6 +610,8 @@ class GameState {
         'campaigns': campaigns.map((c) => c.toJson()).toList(),
         'achievementsUnlocked': achievementsUnlocked.toList()..sort(),
         'achievementsClaimed': achievementsClaimed.toList()..sort(),
+        'dailyStreak': dailyStreak,
+        'lastDailyClaim': lastDailyClaim?.toIso8601String(),
       };
 
   /// Throws [FormatException] if the save is unreadable or from a newer
@@ -639,6 +653,10 @@ class GameState {
             (json['achievementsUnlocked'] as List? ?? const []).cast<String>()),
         achievementsClaimed: Set.unmodifiable(
             (json['achievementsClaimed'] as List? ?? const []).cast<String>()),
+        dailyStreak: json['dailyStreak'] as int? ?? 0,
+        lastDailyClaim: json['lastDailyClaim'] == null
+            ? null
+            : DateTime.parse(json['lastDailyClaim'] as String),
       );
     } on TypeError catch (e) {
       throw FormatException('Corrupt save: $e');

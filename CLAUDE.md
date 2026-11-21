@@ -64,7 +64,11 @@ Run `dart format lib test` before committing.
   name listed in `skillMaterialIcons` (`lib/views/skills/skills_widgets.dart`).
 - `upgrades.json`: one line per category (coffee, chair, laptop); icons live in
   `assets/icons/upgrades/<category>/` (each folder must be listed in
-  `pubspec.yaml`). Effects: `income`, `energyRegen`, `contractSpeed`.
+  `pubspec.yaml`), or a Material icon name (see `skillMaterialIcons`).
+  Effects: `income`, `energyRegen`, `contractSpeed`, `offerSpeed`,
+  `energySaver`, `clientPay`.
+- Skill milestones (`Balance.skillMilestones`) double a skill's income at
+  levels 10, 25, 50, ...; daily reward amounts live in `Balance` too.
 - `locations.json`: cities, sorted by price in game. `icon` is a PNG in
   `assets/icons/locations/` or `""` (the UI shows a generic icon).
 - `marketing.json`: campaigns run per city for `durationSeconds`; cost is

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
+import 'package:freelancer24_tycoon/core/engine/balance.dart';
 import 'package:freelancer24_tycoon/core/engine/game_engine.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
@@ -231,7 +232,15 @@ class _TrackLadder extends StatelessWidget {
                   unlocked ? null : engine.skillUnlockBlocker(state, skill),
               cost: cost,
               canAfford: state.balance >= cost,
-              incomeGain: engine.skillIncome(skill, 1) * multiplier,
+              incomeGain: (unlocked
+                      ? engine.skillIncome(skill, level + 1) -
+                          engine.skillIncome(skill, level)
+                      : engine.skillIncome(skill, 1)) *
+                  multiplier,
+              milestoneMultiplier: engine.milestoneMultiplier(level),
+              previousMilestone: Balance.skillMilestones
+                  .lastWhere((m) => m <= level, orElse: () => 0),
+              nextMilestone: engine.nextMilestone(level),
               onPressed: unlocked
                   ? () => game.upgradeSkill(skill.id)
                   : () => game.unlockSkill(skill.id),

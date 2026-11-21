@@ -50,6 +50,16 @@ void main() {
         s.candidatesAt(berlin).first.expiresAt);
   });
 
+  test('the daily reward streak survives a round trip', () async {
+    final engine = testEngine();
+    final s = engine.claimDailyReward(engine.newGame(t0), t0);
+    final repo = SaveRepository(MemorySaveStore());
+    await repo.save(s);
+    final loaded = (await repo.load())!;
+    expect(loaded.dailyStreak, 1);
+    expect(loaded.lastDailyClaim, t0);
+  });
+
   test('a save from before campaigns and achievements still loads', () {
     final engine = testEngine();
     final berlin = engine.content.startingLocation.id;
@@ -58,7 +68,9 @@ void main() {
     json
       ..remove('campaigns')
       ..remove('achievementsUnlocked')
-      ..remove('achievementsClaimed');
+      ..remove('achievementsClaimed')
+      ..remove('dailyStreak')
+      ..remove('lastDailyClaim');
     (json['stats'] as Map)
       ..remove('goldenContractsCompleted')
       ..remove('campaignsRun');
@@ -75,6 +87,8 @@ void main() {
     expect(old.achievementsUnlocked, isEmpty);
     expect(old.achievementsClaimed, isEmpty);
     expect(old.stats.campaignsRun, 0);
+    expect(old.dailyStreak, 0);
+    expect(old.lastDailyClaim, isNull);
     expect(old.candidatesAt(berlin).every((e) => e.expiresAt == null), isTrue);
 
     // The first tick brings it up to date.
