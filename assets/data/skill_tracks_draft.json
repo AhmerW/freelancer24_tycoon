@@ -1,0 +1,59 @@
+{
+  "tracks": [
+    {"id": "web", "name": "Web Development", "icon": "code", "color": "#2E7D32", "description": "Build the websites everyone scrolls through all day."},
+    {"id": "writing", "name": "Writing & Content", "icon": "edit_note", "color": "#6A1B9A", "description": "Words pay. Especially the right ones."},
+    {"id": "design", "name": "Design", "icon": "palette", "color": "#AD1457", "description": "Make things look so good clients can't say no."},
+    {"id": "marketing", "name": "Marketing", "icon": "campaign", "color": "#D84315", "description": "Get people to notice, click and buy."},
+    {"id": "media", "name": "Video & Audio", "icon": "movie", "color": "#1565C0", "description": "Lights, camera, invoice."},
+    {"id": "software", "name": "Software & Data", "icon": "terminal", "color": "#00838F", "description": "Write the code and crunch the numbers behind it all."}
+  ],
+  "skills": [
+    {"key": "html", "track": "web", "step": 1, "name": "HTML", "description": "Your first skill. A little boring on its own.", "icon": "html.png"},
+    {"key": "css_websites", "track": "web", "step": 2, "name": "Website Development", "description": "You picked up some CSS. Now your websites actually look nice!", "icon": "css.png"},
+    {"key": "javascript", "track": "web", "step": 3, "name": "JavaScript", "description": "Buttons that do things! Your websites are interactive now.", "icon": "javascript.png"},
+    {"key": "frontend_frameworks", "track": "web", "step": 4, "name": "Frontend Frameworks", "description": "Build slick web apps from reusable pieces. Like digital LEGO.", "icon": "web.png"},
+    {"key": "backend_dev", "track": "web", "step": 5, "name": "Backend Development", "description": "The invisible magic behind logins, carts and everything else.", "icon": "dns"},
+    {"key": "databases", "track": "web", "step": 6, "name": "Databases", "description": "Store and find millions of records without breaking a sweat.", "icon": "storage"},
+    {"key": "fullstack_cloud", "track": "web", "step": 7, "name": "Full-Stack & Cloud", "description": "Front, back and servers in the sky. You can build it all.", "icon": "cloud"},
+
+    {"key": "content_writing", "track": "writing", "step": 1, "name": "Content Writing", "description": "What are websites without any content? Very boring.", "icon": "content-writing.png"},
+    {"key": "proofreading", "track": "writing", "step": 2, "name": "Proofreading & Editing", "description": "You spot typos like \"Coffe\" from a mile away.", "icon": "edit_note"},
+    {"key": "blog_writing", "track": "writing", "step": 3, "name": "Blog Writing", "description": "Articles people actually read to the end. Rare talent!", "icon": "article"},
+    {"key": "copywriting", "track": "writing", "step": 4, "name": "Copywriting", "description": "You can now write words that sell. A whole new market!", "icon": "copywriter.png"},
+    {"key": "translation", "track": "writing", "step": 5, "name": "Translation", "description": "Same message, new language. Clients around the world await.", "icon": "translate"},
+    {"key": "technical_writing", "track": "writing", "step": 6, "name": "Technical Writing", "description": "Turn confusing tech into guides normal humans understand.", "icon": "menu_book"},
+    {"key": "ghostwriting", "track": "writing", "step": 7, "name": "Ghostwriting", "description": "Write whole books for others. Spooky, secret, well paid.", "icon": "auto_awesome"},
+
+    {"key": "photo_editing", "track": "design", "step": 1, "name": "Photo Editing", "description": "Everyone needs a little retouching in their life.", "icon": "photo_camera"},
+    {"key": "graphic_design", "track": "design", "step": 2, "name": "Graphic Design", "description": "Posters, flyers, thumbnails. Make it pop!", "icon": "palette"},
+    {"key": "logo_branding", "track": "design", "step": 3, "name": "Logo & Branding", "description": "Give a business its face. No pressure.", "icon": "brush"},
+    {"key": "illustration", "track": "design", "step": 4, "name": "Illustration", "description": "Your doodles are now worth real money.", "icon": "draw"},
+    {"key": "ui_ux_design", "track": "design", "step": 5, "name": "UI/UX Design", "description": "Design apps that are easy and fun to use. Users thank you.", "icon": "design_services"},
+    {"key": "rendering_3d", "track": "design", "step": 6, "name": "3D Rendering", "description": "This will really impress your clients. Never 2D again!", "icon": "view_in_ar"},
+    {"key": "product_design", "track": "design", "step": 7, "name": "Product Design", "description": "Design real objects and 3D print the prototypes. Future unlocked!", "icon": "lightbulb"},
+
+    {"key": "social_media", "track": "marketing", "step": 1, "name": "Social Media Marketing", "description": "Posting for a living? Turns out it's a real job!", "icon": "smm.png"},
+    {"key": "email_marketing", "track": "marketing", "step": 2, "name": "Email Marketing", "description": "Sometimes annoying, always effective. Inboxes, here you come!", "icon": "email.png"},
+    {"key": "seo", "track": "marketing", "step": 3, "name": "SEO", "description": "Get websites to page one of search results. Nobody visits page two.", "icon": "seo.png"},
+    {"key": "paid_ads", "track": "marketing", "step": 4, "name": "Paid Advertising", "description": "Spend the client's budget wisely and watch the clicks roll in.", "icon": "ads_click"},
+    {"key": "marketing_analytics", "track": "marketing", "step": 5, "name": "Marketing Analytics", "description": "Charts that prove your campaigns work. Clients love charts.", "icon": "analytics"},
+    {"key": "growth_marketing", "track": "marketing", "step": 6, "name": "Growth Marketing", "description": "Test, tweak, repeat. Small changes, big growth.", "icon": "trending_up"},
+    {"key": "digital_strategy", "track": "marketing", "step": 7, "name": "Digital Marketing Strategy", "description": "You plan the whole campaign. You can sell anything to anyone!", "icon": "rocket_launch"},
+
+    {"key": "audio_editing", "track": "media", "step": 1, "name": "Audio Editing", "description": "Cut the ums and the coughs. Instant pro sound.", "icon": "graphic_eq"},
+    {"key": "voice_over", "track": "media", "step": 2, "name": "Voice Over", "description": "Your voice in ads and videos. Practice your movie trailer voice.", "icon": "record_voice_over"},
+    {"key": "podcast_production", "track": "media", "step": 3, "name": "Podcast Production", "description": "Everyone has a podcast. Now you make them sound good.", "icon": "podcast"},
+    {"key": "video_editing", "track": "media", "step": 4, "name": "Video Editing", "description": "Things are getting serious. Cuts, transitions, the works!", "icon": "movie"},
+    {"key": "motion_graphics", "track": "media", "step": 5, "name": "Motion Graphics", "description": "Make text and shapes dance. Intros will never be boring again.", "icon": "animation"},
+    {"key": "music_production", "track": "media", "step": 6, "name": "Music & Sound Design", "description": "Beats, jingles and whooshes. Your ears are now an asset.", "icon": "music_note"},
+    {"key": "video_production", "track": "media", "step": 7, "name": "Video Production", "description": "Plan it, shoot it, edit it. You run the whole show.", "icon": "videocam"},
+
+    {"key": "python", "track": "software", "step": 1, "name": "Python Programming", "description": "Friendly, powerful and everywhere. Your coding journey begins!", "icon": "python.png"},
+    {"key": "software_principles", "track": "software", "step": 2, "name": "Software Principles", "description": "Before you can make software, you need to know how to make software.", "icon": "developer.png"},
+    {"key": "java", "track": "software", "step": 3, "name": "Java Programming", "description": "A bigger beast than Python. Who doesn't love a good cup of Java?", "icon": "java.png"},
+    {"key": "mobile_apps", "track": "software", "step": 4, "name": "Mobile App Development", "description": "Apps that live in people's pockets. Literally.", "icon": "phone_iphone"},
+    {"key": "cplusplus", "track": "software", "step": 5, "name": "C++ Programming", "description": "Fast, powerful, a bit scary. The grandparent of them all.", "icon": "cplusplus.png"},
+    {"key": "data_science", "track": "software", "step": 6, "name": "Data Science", "description": "Find the story hidden in a mountain of numbers.", "icon": "monitoring.png"},
+    {"key": "machine_learning", "track": "software", "step": 7, "name": "Machine Learning & AI", "description": "Teach computers to learn. You are basically a wizard now!", "icon": "smart_toy"}
+  ]
+}

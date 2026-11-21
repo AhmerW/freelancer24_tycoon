@@ -59,10 +59,10 @@
             "rate": 1.1,
             "icon": "berlin2.png",
             "maxOffers": 3,
-            "employeeSlotPrice": 5000,
+            "employeeSlotPrice": 750,
             "maxEmployees": 5,
             "maxEmployeeOffers": 4,
-            "employeeSlotPriceRate": 1.5
+            "employeeSlotPriceRate": 2.0
         },
         {
             "id": 1,

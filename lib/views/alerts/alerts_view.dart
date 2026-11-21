@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/alert_cubit.dart';
 import 'package:freelancer24_tycoon/game/game_notice.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class AlertsView extends StatelessWidget {
@@ -63,7 +62,7 @@ class AlertsView extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             notice.title,
-                            style: GoogleFonts.robotoCondensed(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
@@ -72,7 +71,7 @@ class AlertsView extends StatelessWidget {
                         if (notice.message.isNotEmpty)
                           Text(
                             notice.message,
-                            style: GoogleFonts.robotoCondensed(
+                            style: TextStyle(
                               color: Colors.white,
                             ),
                           ),
