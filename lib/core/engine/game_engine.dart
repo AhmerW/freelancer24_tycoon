@@ -560,6 +560,9 @@ class GameEngine {
     if (candidate.isHired) {
       throw GameRuleException('${candidate.name} already works for you');
     }
+    if (candidate.isExpired(now)) {
+      throw GameRuleException('${candidate.name} already took another job');
+    }
     final progress = _locationProgress(s, candidate.locationId);
     if (s.hiredAt(candidate.locationId).length >= progress.employeeSlots) {
       throw const GameRuleException('Buy another desk before hiring');

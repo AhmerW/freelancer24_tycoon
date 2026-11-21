@@ -487,6 +487,15 @@ void main() {
       expect(s.employee(worker.id)!.isHired, isTrue);
     });
 
+    test('an applicant who has left cannot be hired', () {
+      final berlin = content.startingLocation;
+      var s = rich(engine.newGame(t0), 1e6);
+      s = engine.buyEmployeeSlot(s, berlin.id);
+      final applicant = s.candidatesAt(berlin.id).first;
+      expect(() => engine.hireCandidate(s, applicant.id, applicant.expiresAt!),
+          throwsA(isA<GameRuleException>()));
+    });
+
     test('applicants from old saves get a fresh expiry time', () {
       final berlin = content.startingLocation;
       var s = engine.newGame(t0);
@@ -721,7 +730,7 @@ void main() {
       s = engine.advance(s, t0.add(const Duration(seconds: 1))).state;
       final before = s.balance;
       final reward = engine.achievementReward(s, a);
-      expect(reward, a.rewardMin, reason: 'income is tiny at the start');
+      expect(reward, greaterThanOrEqualTo(a.rewardMin));
       s = engine.claimAchievement(s, a.id);
       expect(s.balance, closeTo(before + reward, 1e-9));
       expect(s.isAchievementClaimed(a.id), isTrue);
@@ -735,6 +744,9 @@ void main() {
       final s = engine.newGame(t0).copyWith(skillLevels: {0: 400});
       expect(engine.achievementReward(s, a),
           closeTo(engine.incomePerSecond(s) * a.rewardIncomeSeconds, 1e-6));
+      // With no income the floor applies.
+      final broke = s.copyWith(skillLevels: const {});
+      expect(engine.achievementReward(broke, a), a.rewardMin);
     });
 
     test('cannot claim what is not reached', () {

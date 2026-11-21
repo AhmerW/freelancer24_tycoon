@@ -20,14 +20,18 @@ Run `dart format lib test` before committing.
 
 - `lib/core/` is plain Dart with no Flutter imports, so it is fully unit-testable.
   - `content/`: static game data loaded from `assets/data/*.json` (tracks,
-    skills, upgrade lines, locations). Read-only at runtime.
+    skills, upgrade lines, locations, marketing campaigns, achievements).
+    Read-only at runtime.
   - `state/game_state.dart`: the entire player progress as one immutable
     object, serialized to one versioned JSON save (`kSaveVersion`). A save
     format change requires bumping the version and adding a migration in
     `GameState.fromJson`.
   - `engine/game_engine.dart`: every rule. Actions take a state and return a
     new one or throw `GameRuleException` (its message is shown to the player).
-    `advance()` moves time forward, including offline catch-up.
+    `advance()` moves time forward, including offline catch-up, applicant
+    expiry, ending campaigns and unlocking achievements
+    (`TickResult.newAchievements`). It also repairs older saves (missing
+    upgrade lines, applicants without an expiry time).
   - `engine/balance.dart`: every tuning constant. Change numbers here, then
     check the simulation output.
 - `lib/game/`: `GameCubit` (1s tick, autosave, lifecycle, notices) and
@@ -44,6 +48,18 @@ Run `dart format lib test` before committing.
 - Skill ids are saved in player saves: never renumber existing ids.
 - Skill icons are either a PNG in `assets/icons/skills/` or a Material icon
   name listed in `skillMaterialIcons` (`lib/views/skills/skills_widgets.dart`).
+- `upgrades.json`: one line per category (coffee, chair, laptop); icons live in
+  `assets/icons/upgrades/<category>/` (each folder must be listed in
+  `pubspec.yaml`). Effects: `income`, `energyRegen`, `contractSpeed`.
+- `locations.json`: cities, sorted by price in game. `icon` is a PNG in
+  `assets/icons/locations/` or `""` (the UI shows a generic icon).
+- `marketing.json`: campaigns run per city for `durationSeconds`; cost is
+  `costIncomeSeconds` of current income (at least `minCost`); `effects` stack
+  across different campaigns. Campaign ids are saved in player saves.
+- `achievements.json`: `condition` `{type, value}` (types in
+  `AchievementConditionType`; `trackCompleted` takes a track id as value);
+  reward is `rewardIncomeSeconds` of income at claim time, at least
+  `rewardMin`. Achievement ids are saved in player saves: never rename.
 
 ## Conventions
 
