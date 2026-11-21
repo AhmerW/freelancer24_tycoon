@@ -248,8 +248,8 @@
                 "Mind the deadline! Can you help?"
             ],
             "tier": 3,
-            "widthMultiplier": 0.45,
-            "heightMultiplier": 0.34,
+            "widthMultiplier": 0.395,
+            "heightMultiplier": 0.29,
             "price": 15000000,
             "rate": 3.0,
             "icon": "",

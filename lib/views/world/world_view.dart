@@ -88,9 +88,17 @@ class _WorldMap extends StatelessWidget {
                   color: const Color(0xFF2C6FB8),
                 ),
               ),
-              for (final loc in content.locations)
+              // Locked pins first, so unlocked ones are drawn on top.
+              for (final loc in [
+                ...content.locations
+                    .where((l) => !unlocked.split(',').contains('${l.id}')),
+                ...content.locations
+                    .where((l) => unlocked.split(',').contains('${l.id}')),
+              ])
                 Positioned(
-                  left: box.maxWidth * loc.widthMultiplier,
+                  // Keep pins inside the map (they are ~70px wide).
+                  left: (box.maxWidth * loc.widthMultiplier)
+                      .clamp(0.0, box.maxWidth - 70),
                   top: box.maxHeight * loc.heightMultiplier,
                   child: _MapPin(
                     location: loc,

@@ -38,6 +38,15 @@ Run `dart format lib test` before committing.
   `AlertCubit` (on-screen toasts).
 - `lib/views/`: UI only. Views read `GameCubit` state and call its action
   methods. No game rules in widgets.
+  - `game_ui/`: the game look. Use these instead of plain Material widgets:
+    `GameButton` (3D, haptics, `shine:` when affordable), `StrokeText`
+    (outlined titles/numbers), `GamePanel`, `IconBadge`, `GameProgressBar`,
+    `CoinIcon`, `RollingNumber`, `Bouncy`, `GameTone` color sets,
+    `GameFonts` (Lilita One display, Nunito body).
+  - `FxLayer` (`Fx.of(context)`): `coinBurst`, `floatText`, `confetti`.
+    Call it from a `Builder` context of the button that triggered the action,
+    after the cubit action returned true.
+  - `widgets/coach.dart`: first-run hints derived from game state (no save).
 
 ## Content
 

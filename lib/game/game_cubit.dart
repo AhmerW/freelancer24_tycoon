@@ -69,6 +69,7 @@ class GameCubit extends Cubit<GameState> {
         avatarSeed: c.client,
       ));
     }
+    _announceAchievements(result.newAchievements);
     if (result.awayFor != null && result.awayEarnings > 0) {
       _notify(GameNotice(
         kind: NoticeKind.info,
@@ -162,6 +163,19 @@ class GameCubit extends Cubit<GameState> {
     );
   }
 
+  bool startCampaign(int locationId, String campaignId) => _run(
+        (s) => engine.startCampaign(s, locationId, campaignId, now()),
+        success:
+            '${content.campaignOrNull(campaignId)?.name ?? 'Campaign'} is live!',
+      );
+
+  /// Claims an achievement reward; returns the amount paid, or null.
+  double? claimAchievement(String id) {
+    final before = state.balance;
+    final ok = _run((s) => engine.claimAchievement(s, id));
+    return ok ? state.balance - before : null;
+  }
+
   Future<void> resetGame() async {
     await _saves.clear();
     emit(engine.newGame(now()));
@@ -189,7 +203,9 @@ class GameCubit extends Cubit<GameState> {
     String? avatarSeed,
   }) {
     try {
-      emit(action(state));
+      final check = engine.checkAchievements(action(state));
+      emit(check.state);
+      _announceAchievements(check.unlocked);
     } on GameRuleException catch (e) {
       _notify(GameNotice(
         kind: NoticeKind.error,
@@ -207,6 +223,17 @@ class GameCubit extends Cubit<GameState> {
     }
     save();
     return true;
+  }
+
+  void _announceAchievements(List<AchievementDef> unlocked) {
+    for (final a in unlocked) {
+      _notify(GameNotice(
+        kind: NoticeKind.success,
+        title: 'Achievement: ${a.title}',
+        message: 'Claim your reward in Goals!',
+        lifetime: const Duration(seconds: 5),
+      ));
+    }
   }
 
   void _notify(GameNotice notice) {

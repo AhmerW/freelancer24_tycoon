@@ -4,10 +4,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/goals/goals_view.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/skills/skills_view.dart';
 import 'package:freelancer24_tycoon/views/upgrades/upgrades_view.dart';
+import 'package:freelancer24_tycoon/views/widgets/coach.dart';
 import 'package:freelancer24_tycoon/views/widgets/game_hud.dart';
 import 'package:freelancer24_tycoon/views/world/world_view.dart';
 
@@ -25,6 +27,8 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final readyToCollect =
         context.select((GameCubit c) => c.state.contractsReadyToCollect);
+    final goalsToClaim =
+        context.select((GameCubit c) => c.state.achievementsToClaim);
 
     return Scaffold(
       body: GameBackground(
@@ -34,9 +38,15 @@ class _HomeViewState extends State<HomeView> {
             Expanded(
               child: IndexedStack(
                 index: _tab,
-                children: const [SkillsView(), WorldView(), UpgradesView()],
+                children: const [
+                  SkillsView(),
+                  WorldView(),
+                  UpgradesView(),
+                  GoalsView(),
+                ],
               ),
             ),
+            Coach(onOpenTab: (i) => setState(() => _tab = i)),
             GameTabBar(
               index: _tab,
               onSelect: (i) => setState(() => _tab = i),
@@ -45,6 +55,10 @@ class _HomeViewState extends State<HomeView> {
                 GameTab(
                     icon: Icons.public, label: 'World', badge: readyToCollect),
                 const GameTab(icon: Icons.storefront, label: 'Upgrades'),
+                GameTab(
+                    icon: Icons.emoji_events,
+                    label: 'Goals',
+                    badge: goalsToClaim),
               ],
             ),
           ],
@@ -129,7 +143,8 @@ class _TabButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutBack,
+        // No overshoot here: margins must not go negative.
+        curve: Curves.easeOutCubic,
         margin: EdgeInsets.fromLTRB(3, selected ? 0 : 8, 3, selected ? 4 : 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),

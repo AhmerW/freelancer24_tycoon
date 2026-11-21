@@ -12,6 +12,7 @@ import 'package:freelancer24_tycoon/views/skills/skills_widgets.dart';
 import 'package:freelancer24_tycoon/views/widgets/game_hud.dart';
 import 'package:freelancer24_tycoon/views/world/contracts/contracts_view.dart';
 import 'package:freelancer24_tycoon/views/world/contracts/offers_view.dart';
+import 'package:freelancer24_tycoon/views/world/marketing/campaigns_view.dart';
 import 'package:freelancer24_tycoon/views/world/team/employees_view.dart';
 import 'package:freelancer24_tycoon/views/world/world_view.dart';
 
@@ -27,7 +28,7 @@ class CityPage extends StatefulWidget {
 
 class _CityPageState extends State<CityPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 3, vsync: this)
+  late final TabController _tabs = TabController(length: 4, vsync: this)
     ..addListener(() => setState(() {}));
 
   @override
@@ -51,6 +52,8 @@ class _CityPageState extends State<CityPage>
         .length);
     final staff =
         context.select((GameCubit c) => c.state.hiredAt(location.id).length);
+    final ads = context.select((GameCubit c) =>
+        c.engine.activeCampaigns(c.state, location.id, c.now()).length);
 
     return Scaffold(
       body: GameBackground(
@@ -102,8 +105,9 @@ class _CityPageState extends State<CityPage>
                       (0, 'Offers $offers', 0),
                       (1, 'Jobs $running', ready),
                       (2, 'Team $staff', 0),
+                      (3, 'Ads $ads', 0),
                     ]) ...[
-                      if (i > 0) const SizedBox(width: 8),
+                      if (i > 0) const SizedBox(width: 6),
                       Expanded(
                         child: _CityTab(
                           label: label,
@@ -123,6 +127,7 @@ class _CityPageState extends State<CityPage>
                     OffersView(location, onAccepted: () => _tabs.animateTo(1)),
                     ContractsView(location),
                     EmployeesView(location),
+                    CampaignsView(location),
                   ],
                 ),
               ),
@@ -171,7 +176,7 @@ class _CityTab extends StatelessWidget {
                 BoxShadow(color: tone.lip, offset: const Offset(0, 3))
               ],
             ),
-            child: StrokeText(label, size: 15),
+            child: StrokeText(label, size: 14),
           ),
           if (badge > 0)
             Positioned(

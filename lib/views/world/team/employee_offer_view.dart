@@ -49,6 +49,11 @@ class EmployeeOfferView extends StatelessWidget {
                     StrokeText(e.name, size: 19),
                     Text('Age ${e.age} · wants ${e.cut}% of each job',
                         style: GameFonts.body(size: 12)),
+                    if (e.expiresIn(context.read<GameCubit>().now())
+                        case final left?)
+                      Text('Leaves in ${formatDuration(left)}',
+                          style: GameFonts.body(
+                              size: 12, color: const Color(0xFFE65100))),
                   ],
                 ),
               ),
