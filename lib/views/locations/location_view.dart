@@ -1,190 +1,151 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/contracts/contract_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/locations/location_bloc.dart';
-import 'package:freelancer24_tycoon/data/models/locations/contract.dart';
-import 'package:freelancer24_tycoon/data/models/locations/location.dart';
-import 'package:freelancer24_tycoon/data/repositories/functions.dart';
+import 'package:freelancer24_tycoon/core/content/game_content.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/utils/format.dart';
 import 'package:freelancer24_tycoon/views/locations/contracts/contracts_view.dart';
 import 'package:freelancer24_tycoon/views/locations/contracts/offers_view.dart';
 import 'package:freelancer24_tycoon/views/locations/employees/employees_view.dart';
 import 'package:freelancer24_tycoon/views/locations/marketing_view.dart';
-import 'package:freelancer24_tycoon/views/widgets/fade_indexed_stack.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
+enum _Section { menu, offers, contracts, employees }
+
 class LocationView extends StatefulWidget {
-  final Location location;
-  final Function() onClose;
-  const LocationView(this.location, this.onClose, {super.key});
+  final LocationDef location;
+  final VoidCallback onClose;
+
+  const LocationView(this.location, {super.key, required this.onClose});
 
   @override
   State<LocationView> createState() => _LocationViewState();
 }
 
 class _LocationViewState extends State<LocationView> {
-  int index = 10;
+  _Section _section = _Section.menu;
+
+  void _show(_Section s) => setState(() => _section = s);
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      alignment: Alignment.center,
-      curve: Curves.easeInOut,
-      duration: const Duration(milliseconds: 500),
-      margin: const EdgeInsets.all(20),
-      width: 95.w,
-      height: 95.h,
+    final location = widget.location;
+    final unlocked = context
+        .select((GameCubit c) => c.state.isLocationUnlocked(location.id));
+
+    return Container(
+      margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.97),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.3),
-          width: 2,
-        ),
+        border:
+            Border.all(color: Colors.black.withValues(alpha: 0.3), width: 2),
       ),
       child: Stack(
         children: [
-          // repeat image in background
-
           Positioned.fill(
             child: Image.asset(
+              'assets/icons/locations/${location.icon}',
               width: 70,
               height: 70,
-              "assets/icons/locations/${widget.location.icon}",
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               repeat: ImageRepeat.repeat,
             ),
           ),
-
           Column(
             children: [
-              Container(
-                child: AnimatedTextKit(
-                    repeatForever: false,
-                    totalRepeatCount: 1,
-                    animatedTexts: [
-                      TyperAnimatedText(
-                        "${widget.location.city}, ${widget.location.country}",
-                        speed: const Duration(milliseconds: 50),
-                        textStyle: GoogleFonts.robotoCondensed(
-                          fontSize: 20.sp,
-                        ),
-                      ),
-                    ]),
-              ),
-              SizedBox(
-                height: 20,
-                child: Text(
-                  "Freelance Portal V.1.0",
-                  style: GoogleFonts.robotoCondensed(
-                    fontSize: 15.sp,
-                    // add underline
+              const SizedBox(height: 8),
+              AnimatedTextKit(
+                repeatForever: false,
+                totalRepeatCount: 1,
+                animatedTexts: [
+                  TyperAnimatedText(
+                    '${location.city}, ${location.country}',
+                    speed: const Duration(milliseconds: 50),
+                    textStyle: GoogleFonts.robotoCondensed(fontSize: 20.sp),
                   ),
-                ),
+                ],
+              ),
+              Text(
+                'Freelance Portal V.1.0',
+                style: GoogleFonts.robotoCondensed(fontSize: 15.sp),
               ),
               const Divider(),
               Expanded(
-                child: widget.location.locked
-                    ? LockedLocationView(widget.location,
-                        onClose: widget.onClose)
-                    : Column(
-                        children: [
-                          const SizedBox(
-                            height: 20,
+                child: !unlocked
+                    ? LockedLocationView(location)
+                    : switch (_section) {
+                        _Section.menu => _Menu(location, onSelect: _show),
+                        _Section.offers => OffersView(
+                            location,
+                            onBack: () => _show(_Section.menu),
+                            onShowContracts: () => _show(_Section.contracts),
                           ),
-                          index == 10
-                              ? const MarketingView()
-                              : const SizedBox.shrink(),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.only(top: 15),
-                              child: index != 10
-                                  ? BlocBuilder<ContractBloc, ContractState>(
-                                      builder: (context, state) {
-                                        List<Contract> contracts =
-                                            BlocProvider.of<ContractBloc>(
-                                          context,
-                                        ).getContractsGenIfEmpty(
-                                          widget.location,
-                                        );
-
-                                        return FadeIndexedStack(
-                                          index: index,
-                                          children: [
-                                            OffersView(
-                                              widget.location,
-                                              contracts
-                                                  .where((c) => !c.accepted)
-                                                  .toList(),
-                                              onReject: () => setState(() {
-                                                index = index;
-                                              }),
-                                              callback: () => setState(() {
-                                                index = 10;
-                                              }),
-                                              callbackContracts: () => {
-                                                setState(() {
-                                                  index = 1;
-                                                })
-                                              },
-                                            ),
-                                            ContractsView(
-                                                contracts
-                                                    .where((c) => c.accepted)
-                                                    .toList(),
-                                                widget.location,
-                                                callback: () => setState(() {
-                                                      index = 10;
-                                                    })),
-                                            EmployeesView(
-                                              widget.location,
-                                              callback: () => setState(() {
-                                                index = 10;
-                                              }),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    )
-                                  : Wrap(
-                                      children: [
-                                        LocationOptionButton(
-                                          callback: () => setState(() {
-                                            index = 0;
-                                          }),
-                                          text: "Show available offers",
-                                          icon: Icons.work_outline,
-                                        ),
-                                        LocationOptionButton(
-                                          callback: () => setState(() {
-                                            index = 1;
-                                          }),
-                                          text: "Show ongoing contracts",
-                                          icon: Icons.description_outlined,
-                                        ),
-                                        LocationOptionButton(
-                                          callback: () => setState(() {
-                                            index = 2;
-                                          }),
-                                          text: "Manage employees ",
-                                          icon: Icons.badge_outlined,
-                                        ),
-                                      ],
-                                    ),
-                            ),
+                        _Section.contracts => ContractsView(
+                            location,
+                            onBack: () => _show(_Section.menu),
                           ),
-                        ],
-                      ),
+                        _Section.employees => EmployeesView(
+                            location,
+                            onBack: () => _show(_Section.menu),
+                          ),
+                      },
               ),
             ],
           ),
-          Container(
+          Align(
             alignment: Alignment.topRight,
             child: IconButton(
-                onPressed: widget.onClose,
-                icon: const Icon(
-                  Icons.close_rounded,
-                )),
+              onPressed: widget.onClose,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Menu extends StatelessWidget {
+  final LocationDef location;
+  final void Function(_Section) onSelect;
+
+  const _Menu(this.location, {required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    final offers =
+        context.select((GameCubit c) => c.state.offersAt(location.id).length);
+    final running = context
+        .select((GameCubit c) => c.state.runningContractsAt(location.id));
+    final ready = running.where((c) => c.isCompleted).length;
+    final staff =
+        context.select((GameCubit c) => c.state.hiredAt(location.id).length);
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          const MarketingView(),
+          const SizedBox(height: 15),
+          LocationOptionButton(
+            onPressed: () => onSelect(_Section.offers),
+            text: 'Available offers ($offers)',
+            icon: Icons.work_outline,
+          ),
+          LocationOptionButton(
+            onPressed: () => onSelect(_Section.contracts),
+            text: ready > 0
+                ? 'Contracts ($ready ready to collect!)'
+                : 'Ongoing contracts (${running.length})',
+            icon: Icons.description_outlined,
+            highlight: ready > 0,
+          ),
+          LocationOptionButton(
+            onPressed: () => onSelect(_Section.employees),
+            text: 'Manage employees ($staff)',
+            icon: Icons.badge_outlined,
           ),
         ],
       ),
@@ -193,90 +154,80 @@ class _LocationViewState extends State<LocationView> {
 }
 
 class LocationOptionButton extends StatelessWidget {
-  final Function() callback;
+  final VoidCallback onPressed;
   final IconData icon;
   final String text;
+  final bool highlight;
+
   const LocationOptionButton({
     super.key,
-    required this.callback,
+    required this.onPressed,
     required this.text,
     required this.icon,
+    this.highlight = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: UniqueKey(),
-      padding: const EdgeInsets.all(20),
-      height: 15.h,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      height: 90,
       width: 90.w,
       child: ElevatedButton(
-          onPressed: callback,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 40.w,
-                child: Text(
-                  text,
-                  style: GoogleFonts.robotoCondensed(
-                    fontSize: 18.sp,
-                  ),
-                ),
+        style: highlight
+            ? ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade200)
+            : null,
+        onPressed: onPressed,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                style: GoogleFonts.robotoCondensed(fontSize: 17.sp),
               ),
-              const SizedBox(
-                width: 20,
-              ),
-              Icon(icon)
-            ],
-          )),
+            ),
+            const SizedBox(width: 20),
+            Icon(icon),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class LockedLocationView extends StatefulWidget {
-  final Location location;
-  final Function() onClose;
-  const LockedLocationView(this.location, {super.key, required this.onClose});
+class LockedLocationView extends StatelessWidget {
+  final LocationDef location;
 
-  @override
-  State<LockedLocationView> createState() => _LockedLocationViewState();
-}
+  const LockedLocationView(this.location, {super.key});
 
-class _LockedLocationViewState extends State<LockedLocationView> {
   @override
   Widget build(BuildContext context) {
+    final canAfford =
+        context.select((GameCubit c) => c.state.balance >= location.price);
     return Column(
       children: [
-        Container(
+        Padding(
           padding: const EdgeInsets.all(20),
-          child: Center(
-            child: Text(
-              widget.location.message,
-              style: GoogleFonts.robotoCondensed(
-                fontSize: 17.sp,
-              ),
-            ),
+          child: Text(
+            location.message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.robotoCondensed(fontSize: 17.sp),
           ),
         ),
-        Column(
-          children: [
-            const Icon(
-              Icons.lock,
-              size: 40,
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    BlocProvider.of<LocationBloc>(context)
-                        .add(UnlockLocationEvent(widget.location));
-                  });
-                },
-                child: Text(
-                    "Unlock for ${r'$'}${formatMoney(widget.location.price.toDouble())}"))
-          ],
-        )
+        const Icon(Icons.lock, size: 40),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: canAfford
+              ? () => context.read<GameCubit>().unlockLocation(location.id)
+              : null,
+          child: Text('Unlock for ${dollar(location.price)}'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Contracts here pay ${location.rate}x',
+          style: GoogleFonts.robotoCondensed(fontSize: 15.sp),
+        ),
       ],
     );
   }

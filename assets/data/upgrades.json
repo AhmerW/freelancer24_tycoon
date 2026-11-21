@@ -12,7 +12,7 @@
                     "icon": "coffee-machine-1.png",
                     "tier": 1,
                     "unlockOnPreviousLevel": 0,
-                    "price": 100,
+                    "price": 50,
                     "rate": 1,
                     "levelPriceRate": 1.2
                 },
@@ -23,7 +23,7 @@
                     "icon": "coffee-machine-2.png",
                     "tier": 2,
                     "unlockOnPreviousLevel": 10,
-                    "price": 500,
+                    "price": 2000,
                     "rate": 2,
                     "levelPriceRate": 1.4
                 },
@@ -34,7 +34,7 @@
                     "icon": "coffee-machine-3.png",
                     "tier": 3,
                     "unlockOnPreviousLevel": 10,
-                    "price": 1000,
+                    "price": 80000,
                     "rate": 3,
                     "levelPriceRate": 1.7
                 },
@@ -45,33 +45,34 @@
                     "icon": "coffee-machine-4.png",
                     "tier": 4,
                     "unlockOnPreviousLevel": 10,
-                    "price": 3000,
+                    "price": 3000000,
                     "rate": 4,
                     "levelPriceRate": 2.0
                 },
                 {
-                    "id": 5,
+                    "id": 4,
                     "name": "Ultimate Coffee Machine (Automatic)",
                     "description": "Just say the word and it will make you coffee!",
                     "icon": "coffee-machine-5.png",
-                    "tier": 2,
+                    "tier": 5,
                     "unlockOnPreviousLevel": 10,
-                    "price": 7000,
+                    "price": 120000000,
                     "rate": 5,
                     "levelPriceRate": 2.5
                 },
                 {
-                    "id": 6,
+                    "id": 5,
                     "name": "Ultimate Coffee Machine (Pro-max)",
                     "description": "The best coffee machine in the world (probably)",
                     "icon": "coffee-machine-6.png",
-                    "tier": 2,
+                    "tier": 6,
                     "unlockOnPreviousLevel": 10,
-                    "price": 10000,
+                    "price": 5000000000,
                     "rate": 6,
                     "levelPriceRate": 3.0
                 }
-            ]
+            ],
+            "effect": "energyRegen"
         },
         {
             "name": "Office Chair",
@@ -85,7 +86,7 @@
                     "icon": "chair-1.png",
                     "tier": 1,
                     "unlockOnPreviousLevel": 0,
-                    "price": 100,
+                    "price": 50,
                     "rate": 1,
                     "levelPriceRate": 1.2
                 },
@@ -95,8 +96,8 @@
                     "description": "Finally your back doesnt hurt (as much..)",
                     "icon": "chair-2.png",
                     "tier": 2,
-                    "unlockOnPreviousLevel": 15,
-                    "price": 500,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 2000,
                     "rate": 2,
                     "levelPriceRate": 1.4
                 },
@@ -107,7 +108,7 @@
                     "icon": "chair-3.png",
                     "tier": 3,
                     "unlockOnPreviousLevel": 10,
-                    "price": 1000,
+                    "price": 80000,
                     "rate": 3,
                     "levelPriceRate": 1.7
                 },
@@ -118,33 +119,34 @@
                     "icon": "chair-4.png",
                     "tier": 4,
                     "unlockOnPreviousLevel": 10,
-                    "price": 3000,
+                    "price": 3000000,
                     "rate": 4,
                     "levelPriceRate": 2.0
                 },
                 {
-                    "id": 5,
+                    "id": 4,
                     "name": "Modern colorful chair (with massage)",
                     "description": "This chair will make you feel like a king!",
                     "icon": "chair-5.png",
-                    "tier": 2,
+                    "tier": 5,
                     "unlockOnPreviousLevel": 10,
-                    "price": 7000,
+                    "price": 120000000,
                     "rate": 5,
                     "levelPriceRate": 2.5
                 },
                 {
-                    "id": 6,
+                    "id": 5,
                     "name": "Final boss chair",
                     "description": "The best chair in the world (probably)",
                     "icon": "chair-6.png",
-                    "tier": 2,
+                    "tier": 6,
                     "unlockOnPreviousLevel": 10,
-                    "price": 10000,
+                    "price": 5000000000,
                     "rate": 6,
                     "levelPriceRate": 3.0
                 }
-            ]
+            ],
+            "effect": "income"
         }
     ]
 }

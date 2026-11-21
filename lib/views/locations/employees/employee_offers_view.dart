@@ -1,100 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/employees/employee_bloc.dart';
-import 'package:freelancer24_tycoon/data/models/locations/location.dart';
-import 'package:freelancer24_tycoon/data/models/office/employee.dart';
+import 'package:freelancer24_tycoon/core/content/game_content.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/utils/format.dart';
 import 'package:freelancer24_tycoon/views/locations/employees/employee_offer_view.dart';
 
-class EmployeeOffersView extends StatefulWidget {
-  final List<UnhiredEmployee> unhiredEmployees;
-  final Location location;
-  final Function() emptyOffersCallback;
-  const EmployeeOffersView(
-    this.unhiredEmployees, {
-    super.key,
-    required this.location,
-    required this.emptyOffersCallback,
-  });
+/// Job applicants in a location.
+class EmployeeOffersView extends StatelessWidget {
+  final LocationDef location;
 
-  @override
-  State<EmployeeOffersView> createState() => _EmployeeOffersViewState();
-}
-
-class _EmployeeOffersViewState extends State<EmployeeOffersView> {
-  bool loadingOffers = true;
-  bool loadingAfterEmpty = false;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          loadingOffers = false;
-        });
-      }
-    });
-  }
-
-  void _hireEmployee(Employee employee, int index) {
-    setState(() {
-      BlocProvider.of<EmployeeBloc>(context).add(HireEmployeeEvent(
-        employee,
-        widget.location,
-      ));
-      widget.unhiredEmployees.removeAt(index);
-    });
-  }
-
-  void _rejectEmployee(Employee employee, int index) {
-    setState(() {
-      BlocProvider.of<EmployeeBloc>(context).add(RejectEmployeeEvent(
-        employee,
-        widget.location,
-      ));
-      widget.unhiredEmployees.removeAt(index);
-      if (widget.unhiredEmployees.isEmpty) {
-        // wait 5 seconds before regenerating offers
-        loadingOffers = true;
-        Future.delayed(const Duration(seconds: 1), () {
-          setState(() {
-            loadingOffers = false;
-          });
-          widget.emptyOffersCallback();
-        });
-      }
-    });
-  }
+  const EmployeeOffersView(this.location, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      alignment: Alignment.topCenter,
-      child: loadingOffers
-          ? Center(
-              child: Column(
-                children: [
-                  Text(loadingAfterEmpty
-                      ? "Getting more offers"
-                      : "Loading offers"),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  const CircularProgressIndicator()
-                ],
-              ),
-            )
-          : ListView.builder(
-              shrinkWrap: true,
-              itemCount: widget.unhiredEmployees.length,
-              itemBuilder: (context, index) {
-                UnhiredEmployee offer = widget.unhiredEmployees[index];
-                return EmployeeOfferView(offer,
-                    location: widget.location,
-                    hireCallback: () => _hireEmployee(offer, index),
-                    rejectCallback: () => _rejectEmployee(offer, index));
-              },
+    final game = context.watch<GameCubit>();
+    final state = game.state;
+    final applicants = state.candidatesAt(location.id);
+    final freeDesks = state.locations[location.id]!.employeeSlots -
+        state.hiredAt(location.id).length;
+
+    if (applicants.isEmpty) {
+      final nextIn =
+          state.locations[location.id]!.nextCandidateAt.difference(game.now());
+      return Center(
+        child: Text('No applicants right now. '
+            'Next one in ${formatDuration(nextIn)}.'),
+      );
+    }
+    return ListView(
+      children: [
+        if (freeDesks <= 0)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text(
+              'Buy a desk before you can hire someone.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red),
             ),
+          ),
+        for (final a in applicants)
+          EmployeeOfferView(
+            a,
+            key: ValueKey(a.id),
+            location: location,
+            canHire: freeDesks > 0 && state.balance >= a.hireCost,
+            onHire: () => game.hireCandidate(a.id),
+            onReject: () => game.rejectCandidate(a.id),
+          ),
+      ],
     );
   }
 }

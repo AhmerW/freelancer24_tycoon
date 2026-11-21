@@ -1,30 +1,24 @@
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/contracts/contract_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/employees/employee_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/skills/skill_bloc.dart';
-import 'package:freelancer24_tycoon/data/models/locations/contract.dart';
-import 'package:freelancer24_tycoon/data/models/locations/location.dart';
-import 'package:freelancer24_tycoon/data/models/office/employee.dart';
-import 'package:freelancer24_tycoon/data/models/skills/skill.dart';
-import 'package:freelancer24_tycoon/data/repositories/functions.dart';
+import 'package:freelancer24_tycoon/core/content/game_content.dart';
+import 'package:freelancer24_tycoon/core/state/game_state.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/utils/format.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
 class OfferView extends StatefulWidget {
   final Contract offer;
-  final Location location;
-  final Function() onRemove;
-  final Function(List<Employee>) onAccept;
-  const OfferView(
-    this.offer,
-    this.location, {
+  final LocationDef location;
+  final VoidCallback onAccepted;
+
+  const OfferView({
     super.key,
-    required this.onRemove,
-    required this.onAccept,
+    required this.offer,
+    required this.location,
+    required this.onAccepted,
   });
 
   @override
@@ -32,451 +26,284 @@ class OfferView extends StatefulWidget {
 }
 
 class _OfferViewState extends State<OfferView> {
-  Color color = Colors.orange;
-  Set<int> selected = {};
-  bool _hidden = true;
-  bool _acceptable = true;
+  final Set<int> _selected = {};
+  bool _expanded = false;
 
   @override
   void initState() {
     super.initState();
+    // Most early offers are one-person jobs for the player: pre-select them.
+    final state = context.read<GameCubit>().state;
+    if (!state.playerBusy) _selected.add(kPlayerId);
+  }
+
+  void _toggle(int id, int required) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else if (_selected.length < required) {
+        _selected.add(id);
+      } else if (required == 1) {
+        _selected
+          ..clear()
+          ..add(id);
+      }
+    });
+  }
+
+  /// Why the offer can't be accepted with the current selection, or null.
+  String? _blocker(GameCubit game) {
+    final offer = widget.offer;
+    final state = game.state;
+    if (_selected.length != offer.requiredPeople) {
+      return 'Pick ${offer.requiredPeople} '
+          '${offer.requiredPeople == 1 ? 'person' : 'people'}';
+    }
+    if (!game.engine.teamCovers(state, offer, _selected)) {
+      return 'The team is missing required skills';
+    }
+    if (_selected.contains(kPlayerId) && state.energy < offer.energy) {
+      return 'Not enough energy';
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    SkillsBloc skillsBloc = BlocProvider.of<SkillsBloc>(context);
-    return Container(
-      width: 80.w,
-      decoration: BoxDecoration(
-          border: Border.all(
-            width: 2,
-            color: Colors.black.withOpacity(0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.3),
-              blurRadius: 5,
-              spreadRadius: 2,
-            )
-          ],
-          color: Colors.white.withOpacity(0.4)),
-      child:
-          BlocBuilder<ContractBloc, ContractState>(builder: (context, state) {
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  AnimatedContainer(
-                    width: 100.w,
-                    height: 120,
-                    duration: 200.ms,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                      gradient: null,
-                      color: null,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          alignment: Alignment.topLeft,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Container(
-                                alignment: Alignment.topLeft,
-                                child: Text(
-                                    "${widget.offer.golden ? 'GOLDEN' : ''} Offer by ${widget.offer.name} from ${widget.location.city}",
-                                    style: GoogleFonts.robotoCondensed(
-                                        fontSize: 18.sp,
-                                        fontWeight: FontWeight.bold,
-                                        color: widget.offer.golden
-                                            ? Colors.orange
-                                            : null)),
-                              ),
-                              Container(
-                                  alignment: Alignment.topLeft,
-                                  padding: const EdgeInsets.only(left: 5),
-                                  child: AnimatedTextKit(
-                                    repeatForever: false,
-                                    totalRepeatCount: 1,
-                                    animatedTexts: [
-                                      TyperAnimatedText(
-                                        speed: 20.ms,
-                                        widget.offer.message,
-                                        textStyle: GoogleFonts.robotoCondensed(
-                                            fontSize: 16.sp),
-                                      ),
-                                    ],
-                                  )),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            RandomAvatar(widget.offer.name,
-                                width: 70, height: 70, trBackground: true),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                OfferLabel(
-                                    icon: Icons.schedule_outlined,
-                                    color: Colors.black,
-                                    text:
-                                        "${widget.offer.completionTime.inHours} hours and ${widget.offer.completionTime.inMinutes} minutes"),
-                                OfferLabel(
-                                    icon: Icons.payment_outlined,
-                                    color: Colors.green,
-                                    text:
-                                        "${r'$'}${formatMoney(widget.offer.pay)}"),
-                                OfferLabel(
-                                    icon: Icons.bolt_outlined,
-                                    color: Colors.orange,
-                                    text: "${widget.offer.energy}%"),
-                                OfferLabel(
-                                    icon: Icons.people_outline,
-                                    color: Colors.black,
-                                    text:
-                                        widget.offer.requiredPeople.toString())
-                              ],
-                            )
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              const Divider(),
-              AnimatedSize(
-                duration: 200.ms,
-                child: _hidden
-                    ? Container(
-                        alignment: Alignment.center,
-                        child: IconButton(
-                          icon: const Icon(Icons.expand_circle_down_outlined),
-                          onPressed: () {
-                            setState(() {
-                              _hidden = !_hidden;
-                            });
-                          },
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.only(left: 10),
-                                alignment: Alignment.topLeft,
-                                child: Text(
-                                  "Required skills (${widget.offer.requiredSkills.length}):",
-                                  style: GoogleFonts.robotoCondensed(
-                                    fontSize: 17.sp,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                  alignment: Alignment.topRight,
-                                  child: IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _hidden = !_hidden;
-                                        });
-                                      },
-                                      icon: const Icon(Icons.close))),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 60,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              children: [
-                                for (var skill in widget.offer.requiredSkills)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 5),
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 5),
-                                    child: Builder(builder: (context) {
-                                      Skill? s = skillsBloc
-                                          .hasUnlockedSkill(skill.skill);
-                                      return Chip(
-                                          side: BorderSide(
-                                            color: s == null
-                                                ? Colors.red
-                                                : s.level >= skill.level
-                                                    ? Colors.green
-                                                    : Colors.red,
-                                            width: 1,
-                                          ),
-                                          label: Column(
-                                            children: [
-                                              Text(
-                                                  "${skill.skill.name} (level ${skill.level})",
-                                                  style: GoogleFonts.roboto(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.bold,
-                                                  )),
-                                              s != null
-                                                  ? RichText(
-                                                      text: TextSpan(children: [
-                                                      TextSpan(
-                                                          text: "Unlocked ",
-                                                          style: GoogleFonts
-                                                              .roboto(
-                                                            color: Colors.black,
-                                                            fontSize: 14,
-                                                          )),
-                                                      TextSpan(
-                                                          text:
-                                                              "(level ${s.level})",
-                                                          style: TextStyle(
-                                                              fontSize: 14,
-                                                              color: s.level >=
-                                                                      skill
-                                                                          .level
-                                                                  ? Colors.green
-                                                                  : Colors.red))
-                                                    ]))
-                                                  : const Text(
-                                                      "Not unlocked",
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                            ],
-                                          ));
-                                    }),
-                                  )
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                              height: 80,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    alignment: Alignment.topLeft,
-                                    padding: const EdgeInsets.only(left: 10),
-                                    child: Text(
-                                      "Assign to ${widget.offer.requiredPeople} employee${widget.offer.requiredPeople > 1 ? 's' : ''}:",
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.robotoCondensed(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 17.sp,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: BlocBuilder<EmployeeBloc,
-                                        EmployeeState>(
-                                      builder: (context, state) {
-                                        if (state is LoadedEmployeeState) {
-                                          List<Employee> employees =
-                                              state.withFreelancer(
-                                                  state.getHiredEmployees(
-                                                      widget.location.id));
-                                          int unassigned = employees
-                                              .where((e) => !e.isAssigned)
-                                              .length;
-                                          if (widget.offer.requiredPeople >
-                                              employees.length) {
-                                            _acceptable = false;
-                                            return Container(
-                                              alignment: Alignment.center,
-                                              padding: const EdgeInsets.all(20),
-                                              child: Text(
-                                                "You dont' have enough employees to assign to this offer! Required: ${widget.offer.requiredPeople}, available: ${employees.length}",
-                                              ),
-                                            );
-                                          }
-                                          if (unassigned <
-                                              widget.offer.requiredPeople) {
-                                            _acceptable = false;
-                                            if (_acceptable == false) {
-                                              _acceptable = true;
-                                            }
-                                            return Container(
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                "This offer requires ${widget.offer.requiredPeople} employees, but you have only $unassigned available",
-                                                style: GoogleFonts.roboto(
-                                                  fontSize: 17.sp,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                          return Container(
-                                            alignment: Alignment.center,
-                                            child: ListView.builder(
-                                              scrollDirection: Axis.horizontal,
-                                              shrinkWrap: true,
-                                              itemCount: employees.length,
-                                              itemBuilder: (context, index) {
-                                                Employee employee =
-                                                    employees[index];
-                                                return Padding(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(horizontal: 5),
-                                                  child: ChoiceChip(
-                                                      elevation: 10,
-                                                      selected: selected
-                                                          .contains(index),
-                                                      onSelected: (value) {
-                                                        setState(() {
-                                                          if (selected.length >=
-                                                                  widget.offer
-                                                                      .requiredPeople ||
-                                                              selected.contains(
-                                                                  index)) {
-                                                            selected
-                                                                .remove(index);
-                                                          } else {
-                                                            selected.add(index);
-                                                          }
-                                                        });
-                                                      },
-                                                      label: Row(
-                                                        children: [
-                                                          employee.isFreelancer
-                                                              ? const Icon(
-                                                                  Icons
-                                                                      .person_outline,
-                                                                  size: 30,
-                                                                )
-                                                              : RandomAvatar(
-                                                                  employee.name,
-                                                                  width: 30,
-                                                                  height: 30),
-                                                          Container(
-                                                            color: employee
-                                                                    .isAssigned
-                                                                ? Colors.red
-                                                                : null,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        10),
-                                                            margin:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        5),
-                                                            child: Text(
-                                                                employee.name),
-                                                          ),
-                                                        ],
-                                                      )),
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        }
-                                        return const SizedBox.shrink();
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              )),
-                          const SizedBox(
-                            height: 15,
-                          ),
-                          SizedBox(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                SizedBox(
-                                  width: 30.w,
-                                  child: TextButton(
-                                    onPressed: widget.onRemove,
-                                    style: ButtonStyle(
-                                        shape: WidgetStateProperty.all<
-                                            RoundedRectangleBorder>(
-                                      RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          side: const BorderSide(
-                                            color: Colors.red,
-                                          )),
-                                    )),
-                                    child: const Text(
-                                      "Reject",
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(
-                                    width: 30.w,
-                                    child: BlocBuilder<EmployeeBloc,
-                                        EmployeeState>(
-                                      builder: (context, state) {
-                                        if (state is LoadedEmployeeState) {
-                                          List<Employee> employees =
-                                              state.withFreelancer(
-                                                  state.getHiredEmployees(
-                                                      widget.location.id));
-                                          return ElevatedButton(
-                                            onPressed: _acceptable
-                                                ? () {
-                                                    if (selected.length !=
-                                                        widget.offer
-                                                            .requiredPeople) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                              SnackBar(
-                                                        content: Text(
-                                                            "You need to assign ${widget.offer.requiredPeople} employees to this offer!"),
-                                                        duration: 2.seconds,
-                                                      ));
-                                                      return;
-                                                    } else {
-                                                      List<Employee>
-                                                          selectedEmployees =
-                                                          selected
-                                                              .map((e) =>
-                                                                  employees[e])
-                                                              .toList();
+    final game = context.watch<GameCubit>();
+    final state = game.state;
+    final offer = widget.offer;
 
-                                                      widget.onAccept(
-                                                          selectedEmployees);
-                                                    }
-                                                  }
-                                                : null,
-                                            child: const Text("Accept"),
-                                          );
-                                        }
-                                        return const SizedBox.shrink();
-                                      },
-                                    )),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                      ),
+    // Drop people who became busy since they were selected.
+    _selected.removeWhere((id) => id == kPlayerId
+        ? state.playerBusy
+        : (state.employee(id)?.isBusy ?? true));
+
+    final blocker = _blocker(game);
+
+    return Container(
+      decoration: BoxDecoration(
+        border:
+            Border.all(width: 2, color: Colors.black.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.6),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${offer.golden ? 'GOLDEN ' : ''}Offer by ${offer.client}',
+            style: GoogleFonts.robotoCondensed(
+              fontSize: 18.sp,
+              fontWeight: FontWeight.bold,
+              color: offer.golden ? Colors.orange : null,
+            ),
+          ),
+          AnimatedTextKit(
+            repeatForever: false,
+            totalRepeatCount: 1,
+            animatedTexts: [
+              TyperAnimatedText(
+                offer.message,
+                speed: const Duration(milliseconds: 20),
+                textStyle: GoogleFonts.robotoCondensed(fontSize: 16.sp),
               ),
             ],
           ),
-        );
-      }),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              RandomAvatar(offer.client,
+                  width: 64, height: 64, trBackground: true),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Wrap(
+                  spacing: 14,
+                  runSpacing: 4,
+                  children: [
+                    OfferLabel(
+                        icon: Icons.schedule_outlined,
+                        color: Colors.black,
+                        text: formatDuration(offer.duration)),
+                    OfferLabel(
+                        icon: Icons.payment_outlined,
+                        color: Colors.green,
+                        text: dollar(offer.pay)),
+                    OfferLabel(
+                        icon: Icons.bolt_outlined,
+                        color: Colors.orange,
+                        text: '${offer.energy}'),
+                    OfferLabel(
+                        icon: Icons.people_outline,
+                        color: Colors.black,
+                        text: '${offer.requiredPeople}'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+          if (!_expanded)
+            Center(
+              child: TextButton.icon(
+                icon: const Icon(Icons.expand_circle_down_outlined),
+                label: const Text('Details'),
+                onPressed: () => setState(() => _expanded = true),
+              ),
+            )
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Required skills (${offer.requirements.length}):',
+                    style: GoogleFonts.robotoCondensed(
+                        fontSize: 17.sp, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => setState(() => _expanded = false),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final req in offer.requirements)
+                  _RequirementChip(
+                    skill: game.content.skill(req.skillId),
+                    required: req.level,
+                    teamLevel: game.engine.bestLevel(
+                        state,
+                        _selected.isEmpty ? const [kPlayerId] : _selected,
+                        req.skillId),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Assign ${offer.requiredPeople} '
+              '${offer.requiredPeople == 1 ? 'person' : 'people'}:',
+              style: GoogleFonts.robotoCondensed(
+                  fontWeight: FontWeight.bold, fontSize: 17.sp),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _PersonChip(
+                  name: 'You',
+                  isPlayer: true,
+                  busy: state.playerBusy,
+                  selected: _selected.contains(kPlayerId),
+                  onTap: () => _toggle(kPlayerId, offer.requiredPeople),
+                ),
+                for (final e in state.hiredAt(widget.location.id))
+                  _PersonChip(
+                    name: e.name,
+                    busy: e.isBusy,
+                    selected: _selected.contains(e.id),
+                    onTap: () => _toggle(e.id, offer.requiredPeople),
+                  ),
+              ],
+            ),
+            if (blocker != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(blocker, style: const TextStyle(color: Colors.red)),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  onPressed: () => game.rejectOffer(offer.id),
+                  child: const Text('Reject'),
+                ),
+                ElevatedButton(
+                  onPressed: blocker != null
+                      ? null
+                      : () {
+                          if (game.acceptOffer(offer.id, _selected.toList())) {
+                            widget.onAccepted();
+                          }
+                        },
+                  child: const Text('Accept'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RequirementChip extends StatelessWidget {
+  final SkillDef skill;
+  final int required;
+  final int teamLevel;
+
+  const _RequirementChip({
+    required this.skill,
+    required this.required,
+    required this.teamLevel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = teamLevel >= required;
+    return Chip(
+      side: BorderSide(color: ok ? Colors.green : Colors.red),
+      label: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${skill.name} (level $required)',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            teamLevel == 0
+                ? 'Nobody has this skill'
+                : 'Team best: level $teamLevel',
+            style: TextStyle(color: ok ? Colors.green : Colors.red),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersonChip extends StatelessWidget {
+  final String name;
+  final bool isPlayer;
+  final bool busy;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PersonChip({
+    required this.name,
+    this.isPlayer = false,
+    required this.busy,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      selected: selected,
+      onSelected: busy ? null : (_) => onTap(),
+      avatar: isPlayer
+          ? const Icon(Icons.person_outline)
+          : RandomAvatar(name, width: 24, height: 24),
+      label: Text(busy ? '$name (busy)' : name),
     );
   }
 }
@@ -485,6 +312,7 @@ class OfferLabel extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String text;
+
   const OfferLabel({
     super.key,
     required this.icon,
@@ -494,28 +322,20 @@ class OfferLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 5),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 22,
-            color: color,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22, color: color),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: GoogleFonts.robotoCondensed(
+            fontSize: 17.sp,
+            fontWeight: FontWeight.bold,
+            color: Colors.black.withValues(alpha: 0.9),
           ),
-          const SizedBox(
-            width: 7,
-          ),
-          Text(
-            text,
-            style: GoogleFonts.robotoCondensed(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.black.withOpacity(0.9),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -1,127 +1,99 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/alerts/alert_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/contracts/contract_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/employees/employee_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/locations/location_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/skills/skill_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/upgrades/upgrade_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/users/user_bloc.dart';
-import 'package:freelancer24_tycoon/data/repositories/alert_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/contract_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/employee_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/location_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/skill_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/upgrade_repository.dart';
-import 'package:freelancer24_tycoon/data/repositories/user_repository.dart';
-import 'package:freelancer24_tycoon/data/setup.dart';
-import 'package:freelancer24_tycoon/observer.dart';
+import 'package:freelancer24_tycoon/core/content/content_loader.dart';
+import 'package:freelancer24_tycoon/core/engine/game_engine.dart';
+import 'package:freelancer24_tycoon/core/save/hive_save_store.dart';
+import 'package:freelancer24_tycoon/core/save/save_store.dart';
+import 'package:freelancer24_tycoon/game/alert_cubit.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/views/home.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await setup();
-  Bloc.observer = AppObserver();
-  runApp(const MyApp());
+
+  final content = await loadGameContent();
+  final saves = SaveRepository(await HiveSaveStore.open());
+  final engine = GameEngine(content);
+  final saved = await saves.load();
+
+  final game = GameCubit(
+    engine: engine,
+    saves: saves,
+    initial: saved ?? engine.newGame(DateTime.now()),
+  );
+  // Subscribe to notices before the first tick so the "welcome back"
+  // message isn't missed.
+  final alerts = AlertCubit(game.notices);
+  game.startTicking();
+
+  runApp(FreelancerApp(game: game, alerts: alerts));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class FreelancerApp extends StatefulWidget {
+  final GameCubit game;
+  final AlertCubit alerts;
+
+  const FreelancerApp({super.key, required this.game, required this.alerts});
+
+  @override
+  State<FreelancerApp> createState() => _FreelancerAppState();
+}
+
+class _FreelancerAppState extends State<FreelancerApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        widget.game.onResumed();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        widget.game.onPaused();
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    /* 
-    repositories should only known about its own domain.
-    Blocs should know about its own repository, other blocs, and its own service.
-    Service should know about other services.
-    Complicated tasks and heavy methods should be in services.
-    Blocs should be the intermediate between the UI and the services
-
-    */
-    return ResponsiveSizer(builder: (context, orientation, screenType) {
-      // repos
-
-      return MultiRepositoryProvider(
-        providers: [
-          RepositoryProvider(create: (context) => SkillRepository()),
-          RepositoryProvider(create: (context) => UserRepository()),
-          RepositoryProvider(create: (context) => LocationRepository()),
-          RepositoryProvider(create: (context) => UpgradeRepository()),
-          RepositoryProvider(create: (context) => ContractRepository()),
-          RepositoryProvider(create: (context) => EmployeeRepository()),
-          RepositoryProvider(create: (context) => AlertRepository()),
-        ],
-        child: MultiBlocProvider(
-          providers: [
-            BlocProvider<AlertBloc>(
-              create: (context) =>
-                  AlertBloc(RepositoryProvider.of<AlertRepository>(context))
-                    ..add(LoadAlertsEvent()),
-            ),
-            BlocProvider<SkillsBloc>(
-              create: (context) => SkillsBloc(
-                RepositoryProvider.of<SkillRepository>(context),
-                RepositoryProvider.of<UserRepository>(context),
-              )..add(LoadSkillsEvent()),
-            ),
-            BlocProvider<UserBloc>(
-              create: (context) => UserBloc(
-                  RepositoryProvider.of<UserRepository>(context),
-                  RepositoryProvider.of<SkillRepository>(context),
-                  RepositoryProvider.of<UpgradeRepository>(context))
-                ..add(LoadUserEvent()),
-            ),
-            BlocProvider<LocationBloc>(
-              create: (context) => LocationBloc(
-                  RepositoryProvider.of<LocationRepository>(context),
-                  RepositoryProvider.of<UserRepository>(context))
-                ..add(LoadLocationsEvent()),
-            ),
-            BlocProvider<ContractBloc>(
-              create: (context) => ContractBloc(
-                RepositoryProvider.of<ContractRepository>(context),
-                RepositoryProvider.of<UserRepository>(context),
-                RepositoryProvider.of<LocationRepository>(context),
-                RepositoryProvider.of<SkillRepository>(context),
-                RepositoryProvider.of<EmployeeRepository>(context),
-                RepositoryProvider.of<UpgradeRepository>(context),
-              )..add(LoadContracsEvent()),
-            ),
-            BlocProvider<UpgradeBloc>(
-              create: (context) => UpgradeBloc(
-                  RepositoryProvider.of<UpgradeRepository>(context),
-                  RepositoryProvider.of<UserRepository>(context))
-                ..add(LoadUpgradesEvent()),
-            ),
-            BlocProvider<EmployeeBloc>(
-              create: (context) => EmployeeBloc(
-                RepositoryProvider.of<EmployeeRepository>(context),
-                RepositoryProvider.of<AlertRepository>(context),
-                RepositoryProvider.of<UserRepository>(context),
-                RepositoryProvider.of<SkillRepository>(context),
-              )..add(LoadEmployeesEvent()),
-            )
-          ],
-          child: ResponsiveSizer(builder: (context, orientation, screenType) {
-            return MaterialApp(
-              title: 'Freelancer24 - Tycoon',
-              debugShowCheckedModeBanner: false,
-              theme: FlexThemeData.light(
-                  useMaterial3: true,
-                  scheme: FlexScheme.greenM3,
-                  textTheme: GoogleFonts.robotoCondensedTextTheme(
-                      Theme.of(context).textTheme)),
-              darkTheme: FlexThemeData.dark(
-                  useMaterial3: true, scheme: FlexScheme.orangeM3),
-              themeMode: ThemeMode.light,
-              home: const HomeView(),
-            );
-          }),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: widget.game),
+        BlocProvider.value(value: widget.alerts),
+      ],
+      child: ResponsiveSizer(
+        builder: (context, orientation, screenType) => MaterialApp(
+          title: 'Freelancer24 - Tycoon',
+          debugShowCheckedModeBanner: false,
+          theme: FlexThemeData.light(
+            useMaterial3: true,
+            scheme: FlexScheme.greenM3,
+            textTheme: GoogleFonts.robotoCondensedTextTheme(),
+          ),
+          darkTheme: FlexThemeData.dark(
+            useMaterial3: true,
+            scheme: FlexScheme.orangeM3,
+          ),
+          themeMode: ThemeMode.light,
+          home: const HomeView(),
         ),
-      );
-    });
+      ),
+    );
   }
 }

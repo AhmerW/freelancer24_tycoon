@@ -1,104 +1,81 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/alerts/alert_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/locations/location_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/skills/skill_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/upgrades/upgrade_bloc.dart';
-import 'package:freelancer24_tycoon/blocs/users/user_bloc.dart';
-import 'package:freelancer24_tycoon/data/models/alerts/alert.dart';
-import 'package:freelancer24_tycoon/data/repositories/functions.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
 
-class SettingsDialog extends StatefulWidget {
+class SettingsDialog extends StatelessWidget {
   const SettingsDialog({super.key});
 
-  @override
-  State<SettingsDialog> createState() => _SettingsDialogState();
-}
+  Future<void> _confirmReset(BuildContext context) async {
+    final game = context.read<GameCubit>();
+    final navigator = Navigator.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start over?'),
+        content: const Text(
+            'All your money, skills, cities and employees will be lost. '
+            'This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reset game'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await game.resetGame();
+      navigator.pop();
+    }
+  }
 
-class _SettingsDialogState extends State<SettingsDialog> {
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<UserBloc, UserState>(
-      builder: (context, state) {
-        UserBloc userBloc = BlocProvider.of<UserBloc>(context);
-        SkillsBloc skillsBloc = BlocProvider.of<SkillsBloc>(context);
-        UpgradeBloc upgradeBloc = BlocProvider.of<UpgradeBloc>(context);
-        LocationBloc locationBloc = BlocProvider.of<LocationBloc>(context);
-        AlertBloc alertBloc = BlocProvider.of<AlertBloc>(context);
-        if (state is LoadedUserState) {
-          return SizedBox(
-            width: 500,
-            height: 500,
-            child: AlertDialog(
-              title: const Text("Settings"),
-              content: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  ElevatedButton(
-                      onPressed: () {
-                        userBloc.add(IncreaseUserBalanceEvent(10000));
-                      },
-                      child: Text("+${r'$'}${formatMoney(10000.0)}")),
-                  ElevatedButton(
-                      onPressed: () {
-                        userBloc.add(IncreaseUserBalanceEvent(100000));
-                      },
-                      child: Text("+${r'$'}${formatMoney(100000.0)}")),
-                  ElevatedButton(
-                      onPressed: () {
-                        userBloc.add(SetUserBalaceEvent(0));
-                      },
-                      child: const Text("+${r'$'}0 (Reset)")),
-                  ElevatedButton(
-                    onPressed: () {
-                      skillsBloc.add(ResetSkillsEvent());
-                    },
-                    child: const Text("Reset skills"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      upgradeBloc.add(ResetAllUpgradesEvent());
-                    },
-                    child: const Text("Reset all upgrades"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      locationBloc.add(ResetLocationsEvent());
-                    },
-                    child: const Text("Reset all locations"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      userBloc.add(SetUserEnergyEvent(100));
-                    },
-                    child: const Text("Reset energy"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      alertBloc.add(PushAlertEvent(Alert(UniqueKey().hashCode,
-                          title: "test",
-                          message: "test message",
-                          priority: AlertPriority.high)));
-                    },
-                    child: const Text("High alert"),
-                  ),
-                ],
+    final game = context.read<GameCubit>();
+    return AlertDialog(
+      title: const Text('Settings'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.restart_alt, color: Colors.red),
+            label:
+                const Text('Reset game', style: TextStyle(color: Colors.red)),
+            onPressed: () => _confirmReset(context),
+          ),
+          if (kDebugMode) ...[
+            const Divider(height: 32),
+            const Text('Debug', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            for (final amount in [1e4, 1e6, 1e9])
+              ElevatedButton(
+                onPressed: () => game.debugAddMoney(amount),
+                child: Text('+\$${amount.toStringAsExponential(0)}'),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text("Close"),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: game.debugRefillEnergy,
+              child: const Text('Refill energy'),
             ),
-          );
-        }
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
+            ElevatedButton(
+              onPressed: game.debugNotice,
+              child: const Text('Test alert'),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

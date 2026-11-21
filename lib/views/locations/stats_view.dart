@@ -1,54 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:freelancer24_tycoon/core/state/game_state.dart';
+import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/utils/format.dart';
 
-class StatsView extends StatefulWidget {
+class StatsView extends StatelessWidget {
   const StatsView({super.key});
 
   @override
-  State<StatsView> createState() => _StatsViewState();
-}
-
-class _StatsViewState extends State<StatsView> {
-  @override
   Widget build(BuildContext context) {
-    return SafeArea(
-        child: Stack(
-      children: [
-        Column(
-          children: [
-            const Text(
-              "...Freelancing day 1 of 30",
-              style: TextStyle(
-                fontSize: 20,
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            Container(
-              alignment: Alignment.center,
-              child: Column(
-                children: [
-                  Container(
-                    alignment: Alignment.center,
-                    child: const Text("30 cases closed"),
-                  ),
-                  Container(
-                    alignment: Alignment.center,
-                    child: const Text("5 total employees across 3 cities"),
-                  ),
-                  Container(
-                    alignment: Alignment.center,
-                    child: ElevatedButton(
-                      child: const Text("View more stats"),
-                      onPressed: () {},
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ],
-        )
-      ],
-    ));
+    return BlocBuilder<GameCubit, GameState>(
+      buildWhen: (a, b) =>
+          a.stats != b.stats ||
+          a.employees != b.employees ||
+          a.locations.length != b.locations.length,
+      builder: (context, state) {
+        final game = context.read<GameCubit>();
+        final day = game.now().difference(state.startedAt).inDays + 1;
+        final cities = state.locations.length;
+        final staff = state.hiredCount;
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text('Freelancing day $day',
+                  style: const TextStyle(fontSize: 20)),
+              const SizedBox(height: 10),
+              Text('${state.stats.contractsCompleted} contracts completed'),
+              Text('$staff employee${staff == 1 ? '' : 's'} across '
+                  '$cities cit${cities == 1 ? 'y' : 'ies'}'),
+              Text('${dollar(state.stats.lifetimeEarnings)} earned in total'),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
