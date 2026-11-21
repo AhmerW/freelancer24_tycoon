@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 
 class SettingsDialog extends StatelessWidget {
   const SettingsDialog({super.key});
@@ -13,18 +16,20 @@ class SettingsDialog extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Start over?'),
-        content: const Text(
+        content: Text(
             'All your money, skills, cities and employees will be lost. '
-            'This cannot be undone.'),
+            'This cannot be undone.',
+            style: GameFonts.body()),
         actions: [
-          TextButton(
+          GameButton.small(
+            tone: GameTone.blue,
+            label: 'CANCEL',
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          GameButton.small(
+            tone: GameTone.red,
+            label: 'RESET',
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Reset game'),
           ),
         ],
       ),
@@ -38,44 +43,66 @@ class SettingsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final game = context.read<GameCubit>();
-    return AlertDialog(
-      title: const Text('Settings'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.restart_alt, color: Colors.red),
-            label:
-                const Text('Reset game', style: TextStyle(color: Colors.red)),
-            onPressed: () => _confirmReset(context),
-          ),
-          if (kDebugMode) ...[
-            const Divider(height: 32),
-            const Text('Debug', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            for (final amount in [1e4, 1e6, 1e9])
-              ElevatedButton(
-                onPressed: () => game.debugAddMoney(amount),
-                child: Text('+\$${amount.toStringAsExponential(0)}'),
-              ),
-            ElevatedButton(
-              onPressed: game.debugRefillEnergy,
-              child: const Text('Refill energy'),
-            ),
-            ElevatedButton(
-              onPressed: game.debugNotice,
-              child: const Text('Test alert'),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: GamePanel(
+        title: 'SETTINGS',
+        titleTone: GameTone.blue,
+        titleTrailing: GameButton.small(
+          tone: GameTone.red,
+          icon: Icons.close,
+          width: 36,
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
         ),
-      ],
+        padding: const EdgeInsets.all(16),
+        margin: EdgeInsets.zero,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GameButton(
+              tone: GameTone.red,
+              icon: Icons.restart_alt,
+              label: 'RESET GAME',
+              onPressed: () => _confirmReset(context),
+            ),
+            if (kDebugMode) ...[
+              const SizedBox(height: 16),
+              Text('DEBUG',
+                  style: GameFonts.display(size: 16, color: GameColors.ink)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 10,
+                children: [
+                  for (final (amount, label) in [
+                    (1e4, '+\$10k'),
+                    (1e6, '+\$1M'),
+                    (1e9, '+\$1B'),
+                  ])
+                    GameButton.small(
+                      tone: GameTone.yellow,
+                      label: label,
+                      onPressed: () => game.debugAddMoney(amount),
+                    ),
+                  GameButton.small(
+                    tone: GameTone.purple,
+                    icon: Icons.bolt,
+                    label: 'ENERGY',
+                    onPressed: game.debugRefillEnergy,
+                  ),
+                  GameButton.small(
+                    tone: GameTone.blue,
+                    label: 'TEST ALERT',
+                    onPressed: game.debugNotice,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

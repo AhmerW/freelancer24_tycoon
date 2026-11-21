@@ -1,4 +1,3 @@
-import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/content_loader.dart';
@@ -8,9 +7,10 @@ import 'package:freelancer24_tycoon/core/save/save_store.dart';
 import 'package:freelancer24_tycoon/game/alert_cubit.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/views/alerts/alerts_view.dart';
+import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/home.dart';
 import 'package:freelancer24_tycoon/views/widgets/game_hud.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,30 +81,24 @@ class _FreelancerAppState extends State<FreelancerApp>
       child: MaterialApp(
         title: 'Freelancer24 - Tycoon',
         debugShowCheckedModeBanner: false,
-        theme: FlexThemeData.light(
-          useMaterial3: true,
-          scheme: FlexScheme.greenM3,
-          textTheme: GoogleFonts.robotoCondensedTextTheme(),
-        ),
-        darkTheme: FlexThemeData.dark(
-          useMaterial3: true,
-          scheme: FlexScheme.orangeM3,
-        ),
-        themeMode: ThemeMode.light,
+        theme: buildGameTheme(),
         home: const HomeView(),
-        // Alerts float above every page, just below the HUD.
-        builder: (context, child) => Stack(
-          children: [
-            child!,
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + kHudHeight + 8,
-              right: 8,
-              child: const Material(
-                type: MaterialType.transparency,
-                child: AlertsView(),
+        // Effects and alerts float above every page.
+        builder: (context, child) => FxLayer(
+          child: Stack(
+            children: [
+              child!,
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + kHudHeight + 8,
+                left: 12,
+                right: 12,
+                child: const Material(
+                  type: MaterialType.transparency,
+                  child: AlertsView(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

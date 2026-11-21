@@ -3,8 +3,32 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/widgets/stat_chip.dart';
 import 'package:random_avatar/random_avatar.dart';
+
+/// Avatar in a round frame.
+class PersonAvatar extends StatelessWidget {
+  final String name;
+  final double size;
+
+  const PersonAvatar(this.name, {super.key, this.size = 46});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFBFE3FF),
+          shape: BoxShape.circle,
+          border: Border.all(color: GameColors.ink, width: 2),
+        ),
+        padding: const EdgeInsets.all(3),
+        child:
+            RandomAvatar(name, width: size, height: size, trBackground: true),
+      );
+}
 
 /// A hired employee.
 class EmployeeView extends StatelessWidget {
@@ -16,61 +40,61 @@ class EmployeeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = context.read<GameCubit>().content;
-    final text = Theme.of(context).textTheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                RandomAvatar(employee.name, width: 44, height: 44),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(employee.name, style: text.titleMedium),
-                      Text(
-                        employee.isBusy ? 'Working on a contract' : 'Available',
-                        style: text.bodySmall?.copyWith(
-                            color: employee.isBusy
-                                ? Colors.orange.shade800
-                                : Colors.green.shade700),
-                      ),
-                    ],
-                  ),
+    return GamePanel(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PersonAvatar(employee.name),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StrokeText(employee.name, size: 19),
+                    Text(
+                      employee.isBusy ? 'On a job' : 'Ready for work',
+                      style: GameFonts.body(
+                          size: 13,
+                          color: employee.isBusy
+                              ? const Color(0xFFE65100)
+                              : const Color(0xFF2B8A1C)),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed:
-                      employee.isBusy ? null : () => _confirmFire(context),
-                  child: const Text('Fire'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final s in employee.skills.entries)
-                  StatChip(
-                      icon: Icons.school_outlined,
-                      label: '${content.skill(s.key).name} ${s.value}'),
+              ),
+              GameButton.small(
+                tone: GameTone.red,
+                label: 'FIRE',
+                onPressed: employee.isBusy ? null : () => _confirmFire(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final s in employee.skills.entries)
                 StatChip(
-                    icon: Icons.payments_outlined,
-                    label: '${dollar(employee.wagePerHour)}/h',
-                    tooltip: 'Wage'),
-                StatChip(
-                    icon: Icons.percent,
-                    label: '${employee.cut}%',
-                    tooltip: 'Cut of each contract'),
-              ],
-            ),
-          ],
-        ),
+                    icon: Icons.school,
+                    label: '${content.skill(s.key).name} ${s.value}',
+                    color: const Color(0xFF6A2DB8)),
+              StatChip(
+                  icon: Icons.attach_money,
+                  label: '${formatMoney(employee.wagePerHour)}/h',
+                  color: const Color(0xFF2B8A1C),
+                  tooltip: 'Wage'),
+              StatChip(
+                  icon: Icons.percent,
+                  label: '${employee.cut}%',
+                  color: const Color(0xFFE65100),
+                  tooltip: 'Cut of each job they work on'),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -80,14 +104,17 @@ class EmployeeView extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Fire ${employee.name}?'),
-        content: Text('Severance costs ${dollar(employee.fireCost)}.'),
+        content: Text('Severance costs ${dollar(employee.fireCost)}.',
+            style: GameFonts.body()),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Fire')),
+          GameButton.small(
+              tone: GameTone.blue,
+              label: 'KEEP',
+              onPressed: () => Navigator.pop(context, false)),
+          GameButton.small(
+              tone: GameTone.red,
+              label: 'FIRE',
+              onPressed: () => Navigator.pop(context, true)),
         ],
       ),
     );

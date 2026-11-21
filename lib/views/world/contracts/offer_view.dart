@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/widgets/stat_chip.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -56,7 +61,7 @@ class _OfferViewState extends State<OfferView> {
           '${offer.requiredPeople == 1 ? 'person' : 'people'} below';
     }
     if (!game.engine.teamCovers(state, offer, _selected)) {
-      return 'Missing skills: upgrade them or pick someone who has them';
+      return 'Missing skills: level up or pick someone who has them';
     }
     if (_selected.contains(kPlayerId) && state.energy < offer.energy) {
       return 'Not enough energy: wait a bit or send an employee';
@@ -69,8 +74,6 @@ class _OfferViewState extends State<OfferView> {
     final game = context.watch<GameCubit>();
     final state = game.state;
     final offer = widget.offer;
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
 
     // Drop people who became busy since they were selected.
     _selected.removeWhere((id) => id == kPlayerId
@@ -79,131 +82,133 @@ class _OfferViewState extends State<OfferView> {
     final blocker = _blocker(game);
     final team = _selected.isEmpty ? const [kPlayerId] : _selected;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: offer.golden
-            ? const BorderSide(color: Color(0xFFFFB300), width: 2)
-            : BorderSide.none,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                RandomAvatar(offer.client,
-                    width: 44, height: 44, trBackground: true),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(offer.client,
-                              style: text.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold)),
-                          if (offer.golden) ...[
-                            const SizedBox(width: 6),
-                            const StatChip(
-                              icon: Icons.star,
-                              label: 'VIP',
-                              color: Color(0xFFE09B00),
-                              tooltip: 'VIP clients pay 3x',
-                            ),
-                          ],
-                        ],
-                      ),
-                      Text('"${offer.message}"',
-                          style: text.bodyMedium
-                              ?.copyWith(fontStyle: FontStyle.italic)),
-                    ],
-                  ),
+    final card = GamePanel(
+      borderColor: offer.golden ? const Color(0xFFB07800) : null,
+      color: offer.golden ? const Color(0xFFFFF6D8) : GameColors.panel,
+      title: offer.golden ? 'VIP CLIENT · PAYS 3X' : null,
+      titleTone: GameTone.yellow,
+      titleTrailing: offer.golden
+          ? const Icon(Icons.star, color: Colors.white)
+              .animate(onPlay: (c) => c.repeat())
+              .rotate(duration: 3.seconds)
+          : null,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFBFE3FF),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: GameColors.ink, width: 2),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                StatChip(
-                    icon: Icons.payments_outlined,
-                    label: dollar(offer.pay),
-                    color: Colors.green.shade800),
-                StatChip(
-                    icon: Icons.schedule,
-                    label: formatDuration(offer.duration)),
-                StatChip(
-                    icon: Icons.bolt,
-                    label: '${offer.energy}',
-                    color: const Color(0xFF8D5A00),
-                    tooltip: 'Energy used if you work on it yourself'),
-                StatChip(
-                    icon: Icons.group_outlined,
-                    label: '${offer.requiredPeople}',
-                    tooltip: 'People needed'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Needs', style: text.labelLarge),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final req in offer.requirements)
-                  _RequirementChip(
-                    skill: game.content.skill(req.skillId),
-                    required: req.level,
-                    teamLevel: game.engine.bestLevel(state, team, req.skillId),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-                'Who works on it? (${_selected.length}/${offer.requiredPeople})',
-                style: text.labelLarge),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _PersonChip(
-                  name: 'You',
-                  isPlayer: true,
-                  busy: state.playerBusy,
-                  selected: _selected.contains(kPlayerId),
-                  onTap: () => _toggle(kPlayerId, offer.requiredPeople),
-                ),
-                for (final e in state.hiredAt(widget.location.id))
-                  _PersonChip(
-                    name: e.name,
-                    busy: e.isBusy,
-                    selected: _selected.contains(e.id),
-                    onTap: () => _toggle(e.id, offer.requiredPeople),
-                  ),
-              ],
-            ),
-            if (blocker != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(blocker, style: TextStyle(color: scheme.error)),
+                padding: const EdgeInsets.all(3),
+                child: RandomAvatar(offer.client,
+                    width: 46, height: 46, trBackground: true),
               ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                TextButton(
-                  style: TextButton.styleFrom(foregroundColor: scheme.error),
-                  onPressed: () => game.rejectOffer(offer.id),
-                  child: const Text('Decline'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StrokeText(offer.client, size: 20),
+                    Text('"${offer.message}"',
+                        style:
+                            GameFonts.body(size: 13, weight: FontWeight.w600)),
+                  ],
                 ),
-                const Spacer(),
-                FilledButton.icon(
-                  icon: const Icon(Icons.handshake_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              StatChip(
+                  icon: Icons.attach_money,
+                  label: dollar(offer.pay),
+                  color: const Color(0xFF2B8A1C)),
+              StatChip(
+                  icon: Icons.schedule,
+                  label: formatDuration(offer.duration),
+                  color: const Color(0xFF2E8BEA)),
+              StatChip(
+                  icon: Icons.bolt,
+                  label: '${offer.energy}',
+                  color: GameColors.energyDark,
+                  tooltip: 'Energy used if you work on it yourself'),
+              StatChip(
+                  icon: Icons.group,
+                  label: '${offer.requiredPeople}',
+                  color: const Color(0xFFE65100),
+                  tooltip: 'People needed'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('NEEDS',
+              style: GameFonts.display(size: 14, color: GameColors.ink)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final req in offer.requirements)
+                _RequirementChip(
+                  skill: game.content.skill(req.skillId),
+                  required: req.level,
+                  teamLevel: game.engine.bestLevel(state, team, req.skillId),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('WHO WORKS ON IT? (${_selected.length}/${offer.requiredPeople})',
+              style: GameFonts.display(size: 14, color: GameColors.ink)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _PersonChip(
+                name: 'You',
+                isPlayer: true,
+                busy: state.playerBusy,
+                selected: _selected.contains(kPlayerId),
+                onTap: () => _toggle(kPlayerId, offer.requiredPeople),
+              ),
+              for (final e in state.hiredAt(widget.location.id))
+                _PersonChip(
+                  name: e.name,
+                  busy: e.isBusy,
+                  selected: _selected.contains(e.id),
+                  onTap: () => _toggle(e.id, offer.requiredPeople),
+                ),
+            ],
+          ),
+          if (blocker != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(blocker,
+                  style: GameFonts.body(size: 13, color: GameColors.bad)),
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              GameButton.small(
+                tone: GameTone.red,
+                icon: Icons.close,
+                label: 'NO',
+                onPressed: () => game.rejectOffer(offer.id),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GameButton(
+                  tone: GameTone.green,
+                  icon: Icons.handshake,
+                  label: 'ACCEPT',
+                  shine: blocker == null,
                   onPressed: blocker != null
                       ? null
                       : () {
@@ -211,14 +216,18 @@ class _OfferViewState extends State<OfferView> {
                             widget.onAccepted();
                           }
                         },
-                  label: const Text('Accept'),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
+
+    return card
+        .animate()
+        .fadeIn(duration: 250.ms)
+        .slideY(begin: 0.15, duration: 300.ms, curve: Curves.easeOutBack);
   }
 }
 
@@ -236,18 +245,29 @@ class _RequirementChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ok = teamLevel >= required;
-    final color =
-        ok ? Colors.green.shade700 : Theme.of(context).colorScheme.error;
     return Tooltip(
       message: teamLevel == 0
           ? 'Nobody picked has ${skill.name}'
           : 'Best level in the team: $teamLevel',
-      child: Chip(
-        visualDensity: VisualDensity.compact,
-        avatar: Icon(ok ? Icons.check_circle : Icons.cancel,
-            color: color, size: 18),
-        side: BorderSide(color: color),
-        label: Text('${skill.name} Lv $required'),
+      triggerMode: TooltipTriggerMode.tap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+        decoration: BoxDecoration(
+          color: ok ? const Color(0xFFDDF7D2) : const Color(0xFFFFE0DC),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: ok ? const Color(0xFF2B8A1C) : GameColors.bad, width: 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(ok ? Icons.check_circle : Icons.cancel,
+                size: 20, color: ok ? const Color(0xFF2B8A1C) : GameColors.bad),
+            const SizedBox(width: 4),
+            Text('${skill.name} Lv $required',
+                style: GameFonts.body(size: 13, weight: FontWeight.w800)),
+          ],
+        ),
       ),
     );
   }
@@ -270,13 +290,49 @@ class _PersonChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
-      selected: selected,
-      onSelected: busy ? null : (_) => onTap(),
-      avatar: isPlayer
-          ? const Icon(Icons.person)
-          : RandomAvatar(name, width: 24, height: 24),
-      label: Text(busy ? '$name (busy)' : name),
+    final tone = busy
+        ? GameTone.grey
+        : selected
+            ? GameTone.blue
+            : const GameTone(
+                Colors.white, Color(0xFFE3ECFA), Color(0xFFB8C7E3));
+    return Bouncy(
+      onTap: busy ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [tone.top, tone.bottom],
+          ),
+          border: Border.all(color: GameColors.ink, width: 2),
+          boxShadow: [BoxShadow(color: tone.lip, offset: const Offset(0, 3))],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.white,
+              child: isPlayer
+                  ? const Icon(Icons.person, color: GameColors.ink, size: 20)
+                  : RandomAvatar(name, width: 26, height: 26),
+            ),
+            const SizedBox(width: 6),
+            selected
+                ? StrokeText(name, size: 15)
+                : Text(busy ? '$name (busy)' : name,
+                    style: GameFonts.display(size: 15, color: GameColors.ink)),
+            if (selected) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.check, color: Colors.white, size: 18),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

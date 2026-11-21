@@ -3,12 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/engine/balance.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/settings/settings_dialog.dart';
 
 /// Height of the HUD row, without the status bar.
 const double kHudHeight = 60;
-
-const _tabular = [FontFeature.tabularFigures()];
 
 /// Top bar shown on every screen: money, energy and settings.
 class GameHud extends StatelessWidget {
@@ -19,30 +22,34 @@ class GameHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      elevation: 2,
-      shadowColor: Colors.black26,
+    return Container(
+      decoration: const BoxDecoration(
+        color: GameColors.hud,
+        border: Border(bottom: BorderSide(color: Color(0x33FFFFFF), width: 1)),
+      ),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
           height: kHudHeight,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             child: Row(
               children: [
-                if (leading != null) ...[leading!, const SizedBox(width: 4)],
+                if (leading != null) ...[leading!, const SizedBox(width: 8)],
                 const Expanded(child: MoneyPill()),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 const EnergyPill(),
-                IconButton(
-                  tooltip: 'Settings',
+                const SizedBox(width: 8),
+                GameButton(
+                  tone: GameTone.blue,
+                  height: 40,
+                  width: 40,
+                  icon: Icons.settings,
+                  fontSize: 16,
                   onPressed: () => showDialog(
                     context: context,
                     builder: (_) => const SettingsDialog(),
                   ),
-                  icon: Icon(Icons.settings_outlined, color: scheme.primary),
                 ),
               ],
             ),
@@ -53,13 +60,14 @@ class GameHud extends StatelessWidget {
   }
 }
 
-class _Pill extends StatelessWidget {
-  final Color color;
+/// Dark rounded pill with a round icon overlapping its left edge.
+class _HudPill extends StatelessWidget {
+  final Widget icon;
   final Widget child;
   final String tooltip;
 
-  const _Pill(
-      {required this.color, required this.child, required this.tooltip});
+  const _HudPill(
+      {required this.icon, required this.child, required this.tooltip});
 
   @override
   Widget build(BuildContext context) {
@@ -67,73 +75,62 @@ class _Pill extends StatelessWidget {
       message: tooltip,
       triggerMode: TooltipTriggerMode.tap,
       showDuration: const Duration(seconds: 4),
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(22),
+      child: SizedBox(
+        height: 40,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.centerLeft,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(left: 14),
+              padding: const EdgeInsets.only(left: 22, right: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A1A3D),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF3B5BA0), width: 2),
+              ),
+              alignment: Alignment.centerLeft,
+              child: child,
+            ),
+            icon,
+          ],
         ),
-        child: child,
       ),
     );
   }
 }
 
 class MoneyPill extends StatelessWidget {
-  static const color = Color(0xFF1B5E20);
-
   const MoneyPill({super.key});
 
   @override
   Widget build(BuildContext context) {
     final balance = context.select((GameCubit c) => c.state.balance);
     final income = context.select((GameCubit c) => c.incomePerSecond);
-    final text = Theme.of(context).textTheme;
-    return _Pill(
-      color: const Color(0xFFE2F7D3),
-      tooltip: 'Your skills earn ${dollar(income)} every second, '
-          'even while you are away (at half speed).',
-      child: Row(
-        children: [
-          const Icon(Icons.payments_outlined, color: color, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dollar(balance),
-                  maxLines: 1,
-                  style: text.titleMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    height: 1.1,
-                    fontFeatures: _tabular,
-                  ),
-                ),
-                Text(
-                  '+${dollar(income)}/s',
-                  maxLines: 1,
-                  style: text.labelSmall?.copyWith(
-                    color: color.withValues(alpha: 0.8),
-                    height: 1.1,
-                    fontFeatures: _tabular,
-                  ),
-                ),
-              ],
+    return CoinTarget(
+      child: _HudPill(
+        tooltip: 'Your skills earn ${dollar(income)} every second, '
+            'even while you are away (at half speed).',
+        icon: const CoinIcon(size: 34),
+        child: Row(
+          children: [
+            Expanded(
+              child: RollingNumber(
+                value: balance,
+                format: dollar,
+                builder: (text) => StrokeText(text, size: 18, maxLines: 1),
+              ),
             ),
-          ),
-        ],
+            StrokeText('+${dollar(income)}/s',
+                size: 11, color: const Color(0xFF9BF08A)),
+          ],
+        ),
       ),
     );
   }
 }
 
 class EnergyPill extends StatelessWidget {
-  static const color = Color(0xFF8D5A00);
-
   const EnergyPill({super.key});
 
   @override
@@ -141,46 +138,42 @@ class EnergyPill extends StatelessWidget {
     final energy = context.select((GameCubit c) => c.state.energy);
     final regen = context
         .select((GameCubit c) => c.engine.energyRegenPerSecond(c.state) * 60);
-    final text = Theme.of(context).textTheme;
     const max = Balance.maxEnergy;
-    return _Pill(
-      color: const Color(0xFFFFF0C2),
+    return _HudPill(
       tooltip: 'Energy: working on a contract yourself costs energy. '
           'It refills by ${regen.toStringAsFixed(1)} per minute. '
           'Coffee upgrades make it refill faster.',
+      icon: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(
+            center: Alignment(-0.3, -0.4),
+            colors: [
+              Color(0xFFF0D9FF),
+              GameColors.energy,
+              GameColors.energyDark
+            ],
+            stops: [0, 0.55, 1],
+          ),
+          border: Border.all(color: const Color(0xFF3D1475), width: 2.5),
+        ),
+        child: const Icon(Icons.bolt, color: Colors.white, size: 22, shadows: [
+          Shadow(color: Color(0xFF3D1475), offset: Offset(0, 1.5)),
+        ]),
+      ),
       child: SizedBox(
-        width: 92,
-        child: Row(
+        width: 74,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            const Icon(Icons.bolt, color: color, size: 22),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${energy.floor()}/${max.toInt()}',
-                    style: text.labelLarge?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1,
-                      fontFeatures: _tabular,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: energy / max,
-                      minHeight: 6,
-                      color: const Color(0xFFF2A900),
-                      backgroundColor: color.withValues(alpha: 0.15),
-                    ),
-                  ),
-                ],
-              ),
+            GameProgressBar(
+              value: energy / max,
+              tone: GameTone.purple,
+              height: 20,
             ),
+            StrokeText('${energy.floor()}/${max.toInt()}', size: 13),
           ],
         ),
       ),

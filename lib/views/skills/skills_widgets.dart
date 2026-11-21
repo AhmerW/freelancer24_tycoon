@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 
 enum SkillStatus {
   unlocked,
@@ -29,8 +35,9 @@ class SkillIcon extends StatelessWidget {
     }
     return Icon(
       skillMaterialIcons[icon] ?? Icons.school,
-      size: size * 0.8,
-      color: color ?? Theme.of(context).colorScheme.primary,
+      size: size * 0.85,
+      color: color ?? Colors.white,
+      shadows: const [Shadow(color: GameColors.ink, offset: Offset(0, 2))],
     );
   }
 }
@@ -42,47 +49,76 @@ const Map<String, IconData> skillMaterialIcons = {
   'web': Icons.web,
   'javascript': Icons.javascript,
   'storage': Icons.storage,
-  'cloud': Icons.cloud_outlined,
-  'dns': Icons.dns_outlined,
+  'cloud': Icons.cloud,
+  'dns': Icons.dns,
   'terminal': Icons.terminal,
   'data_object': Icons.data_object,
   'edit_note': Icons.edit_note,
-  'article': Icons.article_outlined,
-  'menu_book': Icons.menu_book_outlined,
+  'article': Icons.article,
+  'menu_book': Icons.menu_book,
   'translate': Icons.translate,
-  'record_voice_over': Icons.record_voice_over_outlined,
-  'campaign': Icons.campaign_outlined,
-  'brush': Icons.brush_outlined,
-  'palette': Icons.palette_outlined,
-  'photo_camera': Icons.photo_camera_outlined,
-  'design_services': Icons.design_services_outlined,
-  'draw': Icons.draw_outlined,
-  'view_in_ar': Icons.view_in_ar_outlined,
+  'record_voice_over': Icons.record_voice_over,
+  'campaign': Icons.campaign,
+  'brush': Icons.brush,
+  'palette': Icons.palette,
+  'photo_camera': Icons.photo_camera,
+  'design_services': Icons.design_services,
+  'draw': Icons.draw,
+  'view_in_ar': Icons.view_in_ar,
   'animation': Icons.animation,
-  'movie': Icons.movie_outlined,
-  'videocam': Icons.videocam_outlined,
-  'mic': Icons.mic_none,
-  'music_note': Icons.music_note_outlined,
+  'movie': Icons.movie,
+  'videocam': Icons.videocam,
+  'mic': Icons.mic,
+  'music_note': Icons.music_note,
   'podcast': Icons.podcasts,
   'graphic_eq': Icons.graphic_eq,
   'trending_up': Icons.trending_up,
   'insights': Icons.insights,
   'query_stats': Icons.query_stats,
   'ads_click': Icons.ads_click,
-  'share': Icons.share_outlined,
-  'mail': Icons.mail_outline,
+  'share': Icons.share,
+  'mail': Icons.mail,
   'search': Icons.search,
-  'analytics': Icons.analytics_outlined,
-  'psychology': Icons.psychology_outlined,
-  'smart_toy': Icons.smart_toy_outlined,
+  'analytics': Icons.analytics,
+  'psychology': Icons.psychology,
+  'smart_toy': Icons.smart_toy,
   'memory': Icons.memory,
   'phone_iphone': Icons.phone_iphone,
-  'bug_report': Icons.bug_report_outlined,
-  'school': Icons.school_outlined,
-  'auto_awesome': Icons.auto_awesome_outlined,
-  'lightbulb': Icons.lightbulb_outline,
-  'rocket_launch': Icons.rocket_launch_outlined,
+  'bug_report': Icons.bug_report,
+  'school': Icons.school,
+  'auto_awesome': Icons.auto_awesome,
+  'lightbulb': Icons.lightbulb,
+  'rocket_launch': Icons.rocket_launch,
+  'public': Icons.public,
+  'star': Icons.star,
+  'emoji_events': Icons.emoji_events,
+  'workspace_premium': Icons.workspace_premium,
+  'military_tech': Icons.military_tech,
+  'groups': Icons.groups,
+  'payments': Icons.payments,
+  'bolt': Icons.bolt,
+  'location_city': Icons.location_city,
 };
+
+/// Price label with a coin, for buttons.
+class PriceLabel extends StatelessWidget {
+  final double price;
+  final double size;
+
+  const PriceLabel(this.price, {super.key, this.size = 16});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CoinIcon(size: size + 2),
+        const SizedBox(width: 4),
+        StrokeText(formatMoney(price), size: size),
+      ],
+    );
+  }
+}
 
 class SkillCard extends StatelessWidget {
   final SkillDef skill;
@@ -96,8 +132,10 @@ class SkillCard extends StatelessWidget {
 
   /// Income the next level (or unlocking) adds per second.
   final double incomeGain;
-  final VoidCallback onPressed;
-  final Color? accent;
+
+  /// Performs the upgrade/unlock; returns true on success.
+  final bool Function() onPressed;
+  final Color accent;
 
   const SkillCard({
     super.key,
@@ -109,121 +147,126 @@ class SkillCard extends StatelessWidget {
     required this.canAfford,
     required this.incomeGain,
     required this.onPressed,
-    this.accent,
+    required this.accent,
   });
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final color = accent ?? scheme.primary;
     final unlocked = status == SkillStatus.unlocked;
     final teaser = status == SkillStatus.locked;
     final actionable =
         unlocked || (status == SkillStatus.next && blocker == null);
+    final tone = teaser ? GameTone.grey : GameTone.from(accent);
+    final showBlocker = status == SkillStatus.next && blocker != null;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: teaser ? scheme.surfaceContainerLow : null,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: teaser ? 0.05 : 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: teaser
-                  ? Icon(Icons.lock_outline, color: scheme.outline)
-                  : Opacity(
-                      opacity: unlocked ? 1 : 0.5,
-                      child: SkillIcon(skill.icon, size: 36, color: color),
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          skill.name,
-                          style: text.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
+    final card = GamePanel(
+      color: teaser ? GameColors.panelShade : GameColors.panel,
+      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconBadge(
+                tone: tone,
+                size: 60,
+                child: teaser
+                    ? const Icon(Icons.lock, color: Colors.white, size: 28)
+                    : Opacity(
+                        opacity: unlocked ? 1 : 0.6,
+                        child: SkillIcon(skill.icon, size: 38),
                       ),
-                      if (unlocked) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text('Lv $level',
-                              style: text.labelSmall?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    switch (status) {
-                      SkillStatus.unlocked => skill.description,
-                      SkillStatus.next => blocker ?? skill.description,
-                      SkillStatus.locked => skill.description,
-                    },
-                    style: text.bodySmall?.copyWith(
-                      color: status == SkillStatus.next && blocker != null
-                          ? scheme.error
-                          : teaser
-                              ? scheme.outline
-                              : null,
-                    ),
-                  ),
-                  if (!teaser) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '+${dollar(incomeGain)}/s ${unlocked ? 'per level' : 'when learned'}',
-                      style: text.labelSmall
-                          ?.copyWith(color: Colors.green.shade800),
-                    ),
-                  ],
-                ],
               ),
-            ),
-            if (!teaser) ...[
-              const SizedBox(width: 8),
-              FilledButton.tonal(
-                style: FilledButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: const Size(84, 48),
+              if (unlocked)
+                Positioned(
+                  bottom: -8,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: GameColors.gold,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: GameColors.ink, width: 2),
+                      ),
+                      child: StrokeText('Lv $level', size: 12),
+                    ),
+                  ),
                 ),
-                onPressed: actionable && canAfford ? onPressed : null,
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StrokeText(skill.name,
+                    size: 18,
+                    color: teaser ? const Color(0xFFE2E6EE) : Colors.white),
+                const SizedBox(height: 2),
+                Text(
+                  showBlocker ? blocker! : skill.description,
+                  style: GameFonts.body(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: showBlocker
+                        ? GameColors.bad
+                        : teaser
+                            ? const Color(0xFF7D869A)
+                            : GameColors.ink,
+                  ),
+                ),
+                if (!teaser) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    '+${dollar(incomeGain)}/s ${unlocked ? 'per level' : 'when learned'}',
+                    style: GameFonts.body(
+                        size: 12, color: const Color(0xFF2B8A1C)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (!teaser) ...[
+            const SizedBox(width: 8),
+            Builder(
+              builder: (buttonContext) => GameButton(
+                tone: unlocked ? GameTone.green : GameTone.yellow,
+                height: 56,
+                width: 96,
+                shine: actionable && canAfford,
+                onPressed: actionable && canAfford
+                    ? () {
+                        if (!onPressed()) return;
+                        final fx = Fx.of(buttonContext);
+                        if (unlocked) {
+                          fx.floatText(buttonContext, 'LEVEL ${level + 1}!',
+                              color: GameColors.gold);
+                        } else {
+                          fx.floatText(buttonContext, 'NEW SKILL!',
+                              color: GameColors.gold);
+                          fx.confetti(buttonContext);
+                        }
+                      }
+                    : null,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(unlocked ? 'Upgrade' : 'Learn',
-                        style: const TextStyle(fontSize: 12)),
-                    Text(dollar(cost),
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    StrokeText(unlocked ? 'UPGRADE' : 'LEARN', size: 13),
+                    PriceLabel(cost, size: 15),
                   ],
                 ),
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
+
+    // Pop the card whenever its level changes.
+    return card.animate(key: ValueKey('${skill.id}-$level')).scaleXY(
+        begin: 1.04, end: 1, duration: 280.ms, curve: Curves.easeOutBack);
   }
 }

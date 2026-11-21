@@ -1,16 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/world/city_page.dart';
 import 'package:freelancer24_tycoon/views/world/stats_view.dart';
 
 void openCity(BuildContext context, LocationDef location) {
   Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => CityPage(location)),
+    PageRouteBuilder<void>(
+      transitionDuration: const Duration(milliseconds: 320),
+      pageBuilder: (_, __, ___) => CityPage(location),
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.92, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutBack)),
+          child: child,
+        ),
+      ),
+    ),
   );
+}
+
+/// City icon, with a generic fallback for cities without artwork.
+class CityIcon extends StatelessWidget {
+  final LocationDef location;
+  final double size;
+
+  const CityIcon(this.location, {super.key, this.size = 36});
+
+  @override
+  Widget build(BuildContext context) => location.icon.isEmpty
+      ? Icon(Icons.location_city, color: Colors.white, size: size * 0.85)
+      : Image.asset('assets/icons/locations/${location.icon}',
+          width: size, height: size);
 }
 
 /// The "World" tab: map, career stats and the list of cities.
@@ -24,14 +54,11 @@ class WorldView extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = context.read<GameCubit>().content;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 32),
       children: [
         const _WorldMap(),
-        const SizedBox(height: 16),
         const StatsView(),
-        const SizedBox(height: 24),
-        Text('Cities', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
+        const SectionTitle('CITIES'),
         for (final loc in content.locations) CityCard(loc),
       ],
     );
@@ -46,8 +73,9 @@ class _WorldMap extends StatelessWidget {
     final content = context.read<GameCubit>().content;
     final unlocked = context
         .select((GameCubit c) => c.state.locations.keys.toSet().join(','));
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return GamePanel(
+      padding: EdgeInsets.zero,
+      color: const Color(0xFF9ED8FF),
       child: AspectRatio(
         aspectRatio: WorldView.mapAspectRatio,
         child: LayoutBuilder(
@@ -57,7 +85,7 @@ class _WorldMap extends StatelessWidget {
                 child: Image.asset(
                   'assets/images/worldmap.png',
                   fit: BoxFit.fill,
-                  color: Colors.black.withValues(alpha: 0.75),
+                  color: const Color(0xFF2C6FB8),
                 ),
               ),
               for (final loc in content.locations)
@@ -85,33 +113,35 @@ class _MapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => openCity(context, location),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          color: unlocked
-              ? Colors.green.shade700
-              : Colors.black.withValues(alpha: 0.55),
+    final tone = unlocked ? GameTone.green : GameTone.grey;
+    final pin = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [tone.top, tone.bottom],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(unlocked ? Icons.location_on : Icons.lock,
-                size: 11, color: Colors.white),
-            const SizedBox(width: 2),
-            Text(
-              location.abbreviation,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
+        border: Border.all(color: GameColors.ink, width: 1.5),
+        boxShadow: [BoxShadow(color: tone.lip, offset: const Offset(0, 2))],
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(unlocked ? Icons.location_on : Icons.lock,
+              size: 11, color: Colors.white),
+          const SizedBox(width: 2),
+          StrokeText(location.abbreviation, size: 11, strokeWidth: 2),
+        ],
+      ),
+    );
+    return Bouncy(
+      onTap: () => openCity(context, location),
+      child: unlocked
+          ? pin.animate(onPlay: (c) => c.repeat(reverse: true)).moveY(
+              begin: 0, end: -3, duration: 900.ms, curve: Curves.easeInOut)
+          : pin,
     );
   }
 }
@@ -131,50 +161,93 @@ class CityCard extends StatelessWidget {
           a.employees != b.employees ||
           (a.balance >= location.price) != (b.balance >= location.price),
       builder: (context, state) {
-        final scheme = Theme.of(context).colorScheme;
         final unlocked = state.isLocationUnlocked(location.id);
         final running = state.runningContractsAt(location.id);
         final ready = running.where((c) => c.isCompleted).length;
+        final offers = state.offersAt(location.id).length;
+        final staff = state.hiredAt(location.id).length;
 
-        final String subtitle;
-        if (!unlocked) {
-          subtitle = 'Unlock for ${dollar(location.price)} · '
-              'contracts pay ${location.rate}x';
-        } else {
-          final offers = state.offersAt(location.id).length;
-          final staff = state.hiredAt(location.id).length;
-          subtitle = '$offers offer${offers == 1 ? '' : 's'} · '
-              '${running.length} running · '
-              '$staff employee${staff == 1 ? '' : 's'}';
-        }
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            onTap: () => openCity(context, location),
-            leading: CircleAvatar(
-              backgroundColor: unlocked
-                  ? scheme.primaryContainer
-                  : scheme.surfaceContainerHighest,
-              child: unlocked
-                  ? Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Image.asset(
-                          'assets/icons/locations/${location.icon}'),
-                    )
-                  : Icon(Icons.lock_outline, color: scheme.onSurfaceVariant),
-            ),
-            title: Text('${location.city}, ${location.country}'),
-            subtitle: Text(subtitle),
-            trailing: ready > 0
-                ? Badge(
-                    label: Text('$ready'),
-                    child: const Icon(Icons.payments, color: Colors.green),
+        return Bouncy(
+          onTap: () => openCity(context, location),
+          child: GamePanel(
+            color: unlocked ? GameColors.panel : GameColors.panelShade,
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                IconBadge(
+                  tone: unlocked ? GameTone.blue : GameTone.grey,
+                  size: 54,
+                  child: unlocked
+                      ? CityIcon(location)
+                      : const Icon(Icons.lock, color: Colors.white, size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      StrokeText(location.city, size: 20),
+                      Text(
+                        unlocked
+                            ? '$offers offers · ${running.length} running · '
+                                '$staff staff'
+                            : '${location.country} · pays ${location.rate}x',
+                        style: GameFonts.body(size: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!unlocked)
+                  _PriceTag(location.price,
+                      affordable: state.balance >= location.price)
+                else if (ready > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: GameColors.gold,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: GameColors.ink, width: 2),
+                    ),
+                    child: StrokeText('COLLECT!', size: 15),
                   )
-                : const Icon(Icons.chevron_right),
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .scaleXY(begin: 0.92, end: 1.08, duration: 500.ms)
+                else
+                  const Icon(Icons.chevron_right,
+                      color: GameColors.ink, size: 30),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+class _PriceTag extends StatelessWidget {
+  final double price;
+  final bool affordable;
+
+  const _PriceTag(this.price, {required this.affordable});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 3, 10, 3),
+      decoration: BoxDecoration(
+        color: affordable ? GameColors.good : const Color(0xFF5A6478),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GameColors.ink, width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CoinIcon(size: 20),
+          const SizedBox(width: 4),
+          StrokeText(formatMoney(price), size: 15),
+        ],
+      ),
     );
   }
 }

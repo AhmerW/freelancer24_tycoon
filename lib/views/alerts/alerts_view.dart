@@ -3,93 +3,91 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/alert_cubit.dart';
 import 'package:freelancer24_tycoon/game/game_notice.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:random_avatar/random_avatar.dart';
 
+/// Game-style banners that drop in below the HUD.
 class AlertsView extends StatelessWidget {
   const AlertsView({super.key});
 
-  static Color _color(NoticeKind kind) => switch (kind) {
-        NoticeKind.success => Colors.green.shade700,
-        NoticeKind.error => Colors.red.shade700,
-        NoticeKind.info => Colors.blueGrey.shade700,
+  static GameTone _tone(NoticeKind kind) => switch (kind) {
+        NoticeKind.success => GameTone.green,
+        NoticeKind.error => GameTone.red,
+        NoticeKind.info => GameTone.blue,
       };
 
   static IconData _icon(NoticeKind kind) => switch (kind) {
-        NoticeKind.success => Icons.check_circle_outline,
-        NoticeKind.error => Icons.error_outline,
-        NoticeKind.info => Icons.info_outline_rounded,
+        NoticeKind.success => Icons.check_circle,
+        NoticeKind.error => Icons.error,
+        NoticeKind.info => Icons.info,
       };
 
   @override
   Widget build(BuildContext context) {
     final notices = context.watch<AlertCubit>().state;
-    return SizedBox(
-      width: 250,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final notice in notices)
-            Container(
-              key: ValueKey(notice.id),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final notice in notices)
+          GestureDetector(
+            key: ValueKey(notice.id),
+            onTap: () => context.read<AlertCubit>().dismiss(notice.id),
+            child: Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.fromLTRB(10, 6, 4, 8),
+              padding: const EdgeInsets.fromLTRB(10, 8, 14, 10),
               decoration: BoxDecoration(
-                color: _color(notice.kind).withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [_tone(notice.kind).top, _tone(notice.kind).bottom],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: GameColors.ink, width: 2.5),
                 boxShadow: [
                   BoxShadow(
+                      color: _tone(notice.kind).lip,
+                      offset: const Offset(0, 4)),
+                  BoxShadow(
                     color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, right: 8),
-                    child: notice.avatarSeed != null
-                        ? RandomAvatar(notice.avatarSeed!,
-                            width: 28, height: 28, trBackground: true)
-                        : Icon(_icon(notice.kind), color: Colors.white),
-                  ),
+                  notice.avatarSeed != null
+                      ? RandomAvatar(notice.avatarSeed!,
+                          width: 34, height: 34, trBackground: true)
+                      : Icon(_icon(notice.kind),
+                          color: Colors.white,
+                          size: 30,
+                          shadows: const [
+                              Shadow(
+                                  color: GameColors.ink, offset: Offset(0, 2))
+                            ]),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            notice.title,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                        StrokeText(notice.title, size: 17),
                         if (notice.message.isNotEmpty)
-                          Text(
-                            notice.message,
-                            style: TextStyle(
-                              color: Colors.white,
-                            ),
-                          ),
+                          Text(notice.message,
+                              style: GameFonts.body(
+                                  color: Colors.white, size: 13)),
                       ],
                     ),
                   ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        context.read<AlertCubit>().dismiss(notice.id),
-                    icon:
-                        const Icon(Icons.close, color: Colors.white, size: 18),
-                  ),
                 ],
               ),
-            ).animate().fadeIn(duration: 200.ms).slideX(begin: 0.2),
-        ],
-      ),
+            )
+                .animate()
+                .slideY(begin: -0.6, duration: 380.ms, curve: Curves.elasticOut)
+                .fadeIn(duration: 150.ms),
+          ),
+      ],
     );
   }
 }

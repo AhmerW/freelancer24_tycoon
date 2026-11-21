@@ -3,14 +3,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
+import 'package:freelancer24_tycoon/views/skills/skills_widgets.dart';
 import 'package:freelancer24_tycoon/views/widgets/stat_chip.dart';
-import 'package:random_avatar/random_avatar.dart';
+import 'package:freelancer24_tycoon/views/world/team/employee_view.dart';
 
 /// A job applicant card.
 class EmployeeOfferView extends StatelessWidget {
   final Employee employee;
   final bool canHire;
-  final VoidCallback onHire;
+  final bool Function() onHire;
   final VoidCallback onReject;
 
   const EmployeeOfferView(
@@ -26,84 +32,90 @@ class EmployeeOfferView extends StatelessWidget {
     final e = employee;
     final content = context.read<GameCubit>().content;
     final state = context.read<GameCubit>().state;
-    final text = Theme.of(context).textTheme;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                RandomAvatar(e.name, width: 44, height: 44, trBackground: true),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(e.name, style: text.titleMedium),
-                      Text('Age ${e.age}', style: text.bodySmall),
-                    ],
+    return GamePanel(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PersonAvatar(e.name),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StrokeText(e.name, size: 19),
+                    Text('Age ${e.age} · wants ${e.cut}% of each job',
+                        style: GameFonts.body(size: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final s in e.skills.entries)
+                StatChip(
+                  icon: state.skillLevel(s.key) < s.value
+                      ? Icons.auto_awesome
+                      : Icons.school,
+                  label: '${content.skill(s.key).name} ${s.value}',
+                  color: state.skillLevel(s.key) < s.value
+                      ? const Color(0xFFE09B00)
+                      : const Color(0xFF6A2DB8),
+                  tooltip: state.skillLevel(s.key) < s.value
+                      ? 'Better than you at this!'
+                      : null,
+                ),
+              StatChip(
+                  icon: Icons.attach_money,
+                  label: '${formatMoney(e.wagePerHour)}/h',
+                  color: const Color(0xFF2B8A1C),
+                  tooltip: 'Wage, paid continuously'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              GameButton.small(
+                tone: GameTone.red,
+                label: 'PASS',
+                onPressed: onReject,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Builder(
+                  builder: (buttonContext) => GameButton(
+                    tone: GameTone.green,
+                    shine: canHire,
+                    onPressed: canHire
+                        ? () {
+                            if (onHire()) {
+                              Fx.of(buttonContext).floatText(
+                                  buttonContext, 'HIRED!',
+                                  color: GameColors.gold);
+                            }
+                          }
+                        : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const StrokeText('HIRE', size: 17),
+                        const SizedBox(width: 8),
+                        PriceLabel(e.hireCost),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text('Skills', style: text.labelLarge),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final s in e.skills.entries)
-                  StatChip(
-                    icon: state.isSkillUnlocked(s.key)
-                        ? Icons.school_outlined
-                        : Icons.auto_awesome,
-                    label: '${content.skill(s.key).name} ${s.value}',
-                    color: state.skillLevel(s.key) < s.value
-                        ? Colors.green.shade800
-                        : null,
-                    tooltip: state.skillLevel(s.key) < s.value
-                        ? 'Better than you at this!'
-                        : null,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                StatChip(
-                    icon: Icons.payments_outlined,
-                    label: '${dollar(e.wagePerHour)}/h',
-                    tooltip: 'Wage, paid continuously'),
-                StatChip(
-                    icon: Icons.percent,
-                    label: '${e.cut}% cut',
-                    tooltip: 'Share of each contract they work on'),
-                StatChip(
-                    icon: Icons.logout,
-                    label: dollar(e.fireCost),
-                    tooltip: 'Severance if you fire them'),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                TextButton(onPressed: onReject, child: const Text('Pass')),
-                const Spacer(),
-                FilledButton(
-                  onPressed: canHire ? onHire : null,
-                  child: Text('Hire for ${dollar(e.hireCost)}'),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/widgets/stat_chip.dart';
 import 'package:freelancer24_tycoon/views/world/team/employee_offer_view.dart';
 
@@ -34,10 +35,11 @@ class EmployeeOffersView extends StatelessWidget {
         if (freeDesks <= 0)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Buy a desk in "Your team" before hiring.',
+            child: StrokeText(
+              'Buy a desk in "Your team" before hiring!',
+              size: 16,
+              color: const Color(0xFFFFD0C9),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         for (final a in applicants)

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/core/engine/game_engine.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
+import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
+import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/skills/skills_widgets.dart';
 
 /// The "Skills" tab: career tracks and their skill ladders.
@@ -29,28 +33,27 @@ class _SkillsViewState extends State<SkillsView> {
       builder: (context, state) {
         final engine = game.engine;
         final track = content.track(_trackId ?? content.tracks.first.id);
-        final text = Theme.of(context).textTheme;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Skills ${state.skillLevels.length}/${content.skills.length}',
-                style: text.titleLarge,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: StrokeText(
+                'SKILLS  ${state.skillLevels.length}/${content.skills.length}',
+                size: 26,
               ),
             ),
             SizedBox(
-              height: 48,
+              height: 64,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                 children: [
                   for (final t in content.tracks)
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
-                      child: _TrackChip(
+                      child: _TrackTab(
                         track: t,
                         selected: t.id == track.id,
                         open: engine.isTrackOpen(state, t),
@@ -87,7 +90,7 @@ class _SkillsViewState extends State<SkillsView> {
   }
 }
 
-class _TrackChip extends StatelessWidget {
+class _TrackTab extends StatelessWidget {
   final TrackDef track;
   final bool selected;
   final bool open;
@@ -95,7 +98,7 @@ class _TrackChip extends StatelessWidget {
   final bool hasAffordableSkill;
   final VoidCallback onTap;
 
-  const _TrackChip({
+  const _TrackTab({
     required this.track,
     required this.selected,
     required this.open,
@@ -106,35 +109,73 @@ class _TrackChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(track.color);
-    final fg = selected ? Colors.white : (open ? color : Colors.grey);
-    return Badge(
-      isLabelVisible: hasAffordableSkill && !selected,
-      smallSize: 10,
-      backgroundColor: Colors.green.shade600,
-      child: Material(
-        color: selected ? color : color.withValues(alpha: open ? 0.1 : 0.04),
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    final tone = open ? GameTone.from(Color(track.color)) : GameTone.grey;
+    return Bouncy(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: EdgeInsets.only(top: selected ? 0 : 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: selected
+                    ? [tone.top, tone.bottom]
+                    : [
+                        tone.bottom.withValues(alpha: 0.55),
+                        tone.lip.withValues(alpha: 0.7),
+                      ],
+              ),
+              border: Border.all(
+                  color: selected ? Colors.white : GameColors.ink,
+                  width: selected ? 3 : 2),
+              boxShadow: [
+                BoxShadow(color: tone.lip, offset: const Offset(0, 3)),
+              ],
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 open
-                    ? SkillIcon(track.icon, size: 22, color: fg)
-                    : Icon(Icons.lock_outline, size: 18, color: fg),
+                    ? SkillIcon(track.icon, size: 24)
+                    : const Icon(Icons.lock, color: Colors.white, size: 20),
                 const SizedBox(width: 6),
-                Text(
-                  '${track.name}  $learned/7',
-                  style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StrokeText(track.name, size: 14),
+                    StrokeText('$learned/7',
+                        size: 11, color: const Color(0xFFFFE9A8)),
+                  ],
                 ),
               ],
             ),
           ),
-        ),
+          if (hasAffordableSkill && !selected)
+            Positioned(
+              right: -4,
+              top: -6,
+              child: Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: GameColors.bad,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: StrokeText('!', size: 13),
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scaleXY(begin: 0.85, end: 1.1, duration: 600.ms),
+            ),
+        ],
       ),
     );
   }
@@ -156,21 +197,21 @@ class _TrackLadder extends StatelessWidget {
     // Income gained per level, including upgrade bonuses.
     final base = engine.baseIncomePerSecond(state);
     final multiplier = base > 0 ? engine.incomePerSecond(state) / base : 1.0;
-    final text = Theme.of(context).textTheme;
+    final skills = game.content.skillsInTrack(track.id);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 32),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
           child: Text(
             open
                 ? track.description
-                : '${track.description}\n${engine.skillUnlockBlocker(state, game.content.skillsInTrack(track.id).first)}.',
-            style: text.bodyMedium?.copyWith(color: open ? null : color),
+                : '${track.description}\n${engine.skillUnlockBlocker(state, skills.first)}.',
+            style: GameFonts.body(color: Colors.white, size: 14),
           ),
         ),
-        for (final skill in game.content.skillsInTrack(track.id))
+        for (final skill in skills)
           Builder(builder: (context) {
             final unlocked = state.isSkillUnlocked(skill.id);
             final level = state.skillLevel(skill.id);
