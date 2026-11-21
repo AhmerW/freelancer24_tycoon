@@ -1,0 +1,49 @@
+{
+    "campaigns": [
+        {
+            "id": "flyers",
+            "name": "Flyers",
+            "description": "Paper the whole block. More clients come knocking!",
+            "icon": "mail",
+            "durationSeconds": 600,
+            "costIncomeSeconds": 60,
+            "minCost": 25,
+            "effects": {
+                "extraOffers": 2,
+                "offerCooldownMultiplier": 1,
+                "payMultiplier": 1,
+                "goldenChanceBonus": 0
+            }
+        },
+        {
+            "id": "radio",
+            "name": "Radio ad",
+            "description": "Your jingle is stuck in everyone's head. Offers pour in.",
+            "icon": "podcast",
+            "durationSeconds": 900,
+            "costIncomeSeconds": 180,
+            "minCost": 100,
+            "effects": {
+                "extraOffers": 1,
+                "offerCooldownMultiplier": 0.4,
+                "payMultiplier": 1,
+                "goldenChanceBonus": 0
+            }
+        },
+        {
+            "id": "online",
+            "name": "Online ads",
+            "description": "Ads that find the big spenders. Better pay, more VIPs.",
+            "icon": "ads_click",
+            "durationSeconds": 1200,
+            "costIncomeSeconds": 900,
+            "minCost": 500,
+            "effects": {
+                "extraOffers": 0,
+                "offerCooldownMultiplier": 1,
+                "payMultiplier": 1.25,
+                "goldenChanceBonus": 0.1
+            }
+        }
+    ]
+}

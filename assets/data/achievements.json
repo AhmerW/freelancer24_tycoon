@@ -1,0 +1,220 @@
+{
+    "achievements": [
+        {
+            "id": "first_contract",
+            "title": "First Gig",
+            "description": "Finish and collect your very first contract.",
+            "icon": "payments",
+            "condition": { "type": "contractsCompleted", "value": 1 },
+            "rewardIncomeSeconds": 120,
+            "rewardMin": 25
+        },
+        {
+            "id": "skills_3",
+            "title": "Quick Learner",
+            "description": "Learn 3 skills.",
+            "icon": "school",
+            "condition": { "type": "skillsLearned", "value": 3 },
+            "rewardIncomeSeconds": 180,
+            "rewardMin": 50
+        },
+        {
+            "id": "level_10",
+            "title": "Getting Good",
+            "description": "Get any skill to level 10.",
+            "icon": "trending_up",
+            "condition": { "type": "skillLevel", "value": 10 },
+            "rewardIncomeSeconds": 240,
+            "rewardMin": 100
+        },
+        {
+            "id": "campaigns_1",
+            "title": "Hype Starter",
+            "description": "Run your first marketing campaign.",
+            "icon": "campaign",
+            "condition": { "type": "campaignsRun", "value": 1 },
+            "rewardIncomeSeconds": 180,
+            "rewardMin": 50
+        },
+        {
+            "id": "contracts_10",
+            "title": "Regular",
+            "description": "Collect 10 contracts.",
+            "icon": "edit_note",
+            "condition": { "type": "contractsCompleted", "value": 10 },
+            "rewardIncomeSeconds": 300,
+            "rewardMin": 100
+        },
+        {
+            "id": "hired_1",
+            "title": "Boss Mode",
+            "description": "Hire your first employee.",
+            "icon": "groups",
+            "condition": { "type": "employeesHired", "value": 1 },
+            "rewardIncomeSeconds": 300,
+            "rewardMin": 200
+        },
+        {
+            "id": "earned_10k",
+            "title": "Ten Grand Club",
+            "description": "Earn $10K in total.",
+            "icon": "bolt",
+            "condition": { "type": "lifetimeEarnings", "value": 10000 },
+            "rewardIncomeSeconds": 300,
+            "rewardMin": 500
+        },
+        {
+            "id": "golden_1",
+            "title": "Struck Gold",
+            "description": "Collect a golden VIP contract.",
+            "icon": "star",
+            "condition": { "type": "goldenContractsCompleted", "value": 1 },
+            "rewardIncomeSeconds": 300,
+            "rewardMin": 100
+        },
+        {
+            "id": "cities_2",
+            "title": "Passport Ready",
+            "description": "Open your second city.",
+            "icon": "public",
+            "condition": { "type": "citiesUnlocked", "value": 2 },
+            "rewardIncomeSeconds": 600,
+            "rewardMin": 1000
+        },
+        {
+            "id": "skills_10",
+            "title": "Jack of All Trades",
+            "description": "Learn 10 skills.",
+            "icon": "lightbulb",
+            "condition": { "type": "skillsLearned", "value": 10 },
+            "rewardIncomeSeconds": 600,
+            "rewardMin": 1000
+        },
+        {
+            "id": "track_web",
+            "title": "Full-Stack Hero",
+            "description": "Learn every Web Development skill.",
+            "icon": "code",
+            "condition": { "type": "trackCompleted", "value": "web" },
+            "rewardIncomeSeconds": 900,
+            "rewardMin": 5000
+        },
+        {
+            "id": "contracts_100",
+            "title": "Busy Bee",
+            "description": "Collect 100 contracts.",
+            "icon": "analytics",
+            "condition": { "type": "contractsCompleted", "value": 100 },
+            "rewardIncomeSeconds": 900,
+            "rewardMin": 5000
+        },
+        {
+            "id": "earned_1m",
+            "title": "Millionaire",
+            "description": "Earn $1M in total.",
+            "icon": "emoji_events",
+            "condition": { "type": "lifetimeEarnings", "value": 1000000 },
+            "rewardIncomeSeconds": 900,
+            "rewardMin": 10000
+        },
+        {
+            "id": "hired_10",
+            "title": "Team Builder",
+            "description": "Hire 10 employees.",
+            "icon": "groups",
+            "condition": { "type": "employeesHired", "value": 10 },
+            "rewardIncomeSeconds": 900,
+            "rewardMin": 10000
+        },
+        {
+            "id": "campaigns_25",
+            "title": "Marketing Guru",
+            "description": "Run 25 marketing campaigns.",
+            "icon": "insights",
+            "condition": { "type": "campaignsRun", "value": 25 },
+            "rewardIncomeSeconds": 1200,
+            "rewardMin": 10000
+        },
+        {
+            "id": "golden_25",
+            "title": "Golden Touch",
+            "description": "Collect 25 golden VIP contracts.",
+            "icon": "workspace_premium",
+            "condition": { "type": "goldenContractsCompleted", "value": 25 },
+            "rewardIncomeSeconds": 1200,
+            "rewardMin": 50000
+        },
+        {
+            "id": "skills_25",
+            "title": "Walking Encyclopedia",
+            "description": "Learn 25 skills.",
+            "icon": "psychology",
+            "condition": { "type": "skillsLearned", "value": 25 },
+            "rewardIncomeSeconds": 1200,
+            "rewardMin": 100000
+        },
+        {
+            "id": "track_media",
+            "title": "Director's Cut",
+            "description": "Learn every Video & Audio skill.",
+            "icon": "movie",
+            "condition": { "type": "trackCompleted", "value": "media" },
+            "rewardIncomeSeconds": 1200,
+            "rewardMin": 100000
+        },
+        {
+            "id": "level_50",
+            "title": "Master of the Craft",
+            "description": "Get any skill to level 50.",
+            "icon": "military_tech",
+            "condition": { "type": "skillLevel", "value": 50 },
+            "rewardIncomeSeconds": 1800,
+            "rewardMin": 100000
+        },
+        {
+            "id": "contracts_1000",
+            "title": "Contract Machine",
+            "description": "Collect 1,000 contracts.",
+            "icon": "smart_toy",
+            "condition": { "type": "contractsCompleted", "value": 1000 },
+            "rewardIncomeSeconds": 1800,
+            "rewardMin": 1000000
+        },
+        {
+            "id": "track_software",
+            "title": "Code Wizard",
+            "description": "Learn every Software Engineering skill.",
+            "icon": "rocket_launch",
+            "condition": { "type": "trackCompleted", "value": "software" },
+            "rewardIncomeSeconds": 1800,
+            "rewardMin": 1000000
+        },
+        {
+            "id": "cities_all",
+            "title": "Globetrotter",
+            "description": "Open an office in all 8 cities.",
+            "icon": "location_city",
+            "condition": { "type": "citiesUnlocked", "value": 8 },
+            "rewardIncomeSeconds": 2400,
+            "rewardMin": 1000000
+        },
+        {
+            "id": "earned_1b",
+            "title": "Billionaire Vibes",
+            "description": "Earn $1B in total.",
+            "icon": "auto_awesome",
+            "condition": { "type": "lifetimeEarnings", "value": 1000000000 },
+            "rewardIncomeSeconds": 2400,
+            "rewardMin": 1000000
+        },
+        {
+            "id": "skills_all",
+            "title": "Know-It-All",
+            "description": "Learn all 42 skills. Is there anything you can't do?",
+            "icon": "school",
+            "condition": { "type": "skillsLearned", "value": 42 },
+            "rewardIncomeSeconds": 3600,
+            "rewardMin": 1000000
+        }
+    ]
+}

@@ -185,6 +185,11 @@ class Employee {
   /// The contract the employee is working on, if any.
   final int? contractId;
 
+  /// When a job applicant gives up and leaves. Null for hired employees
+  /// (they never expire) and for applicants from saves made before applicants
+  /// could expire (the engine fills it in on the next tick).
+  final DateTime? expiresAt;
+
   const Employee({
     required this.id,
     required this.locationId,
@@ -197,15 +202,29 @@ class Employee {
     required this.skills,
     this.status = EmployeeStatus.candidate,
     this.contractId,
+    this.expiresAt,
   });
 
   bool get isHired => status == EmployeeStatus.hired;
+
+  /// Whether this applicant has left by [now]. Hired employees never expire.
+  bool isExpired(DateTime now) =>
+      !isHired && expiresAt != null && !expiresAt!.isAfter(now);
+
+  /// Time until this applicant leaves, or null if they don't expire.
+  Duration? expiresIn(DateTime now) {
+    if (isHired || expiresAt == null) return null;
+    final left = expiresAt!.difference(now);
+    return left.isNegative ? Duration.zero : left;
+  }
+
   bool get isBusy => contractId != null;
   int levelOf(int skillId) => skills[skillId] ?? 0;
 
   Employee copyWith({
     EmployeeStatus? status,
     int? Function()? contractId,
+    DateTime? Function()? expiresAt,
   }) =>
       Employee(
         id: id,
@@ -219,6 +238,7 @@ class Employee {
         skills: skills,
         status: status ?? this.status,
         contractId: contractId != null ? contractId() : this.contractId,
+        expiresAt: expiresAt != null ? expiresAt() : this.expiresAt,
       );
 
   factory Employee.fromJson(Map<String, dynamic> json) => Employee(
@@ -233,6 +253,9 @@ class Employee {
         skills: _intMap(json['skills']),
         status: EmployeeStatus.values.byName(json['status'] as String),
         contractId: json['contractId'] as int?,
+        expiresAt: json['expiresAt'] == null
+            ? null
+            : DateTime.parse(json['expiresAt'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -247,6 +270,7 @@ class Employee {
         'skills': _stringKeys(skills),
         'status': status.name,
         'contractId': contractId,
+        if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
       };
 }
 
@@ -316,38 +340,99 @@ class LocationProgress {
       };
 }
 
+/// A marketing campaign running in a location until [endsAt].
+class ActiveCampaign {
+  final int locationId;
+
+  /// Id of a `CampaignDef`.
+  final String campaignId;
+  final DateTime endsAt;
+
+  const ActiveCampaign({
+    required this.locationId,
+    required this.campaignId,
+    required this.endsAt,
+  });
+
+  bool isRunning(DateTime now) => endsAt.isAfter(now);
+
+  Duration remaining(DateTime now) {
+    final left = endsAt.difference(now);
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  factory ActiveCampaign.fromJson(Map<String, dynamic> json) => ActiveCampaign(
+        locationId: json['locationId'] as int,
+        campaignId: json['campaignId'] as String,
+        endsAt: DateTime.parse(json['endsAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'locationId': locationId,
+        'campaignId': campaignId,
+        'endsAt': endsAt.toIso8601String(),
+      };
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActiveCampaign &&
+      other.locationId == locationId &&
+      other.campaignId == campaignId &&
+      other.endsAt == endsAt;
+
+  @override
+  int get hashCode => Object.hash(locationId, campaignId, endsAt);
+}
+
 class GameStats {
   final int contractsCompleted;
   final double lifetimeEarnings;
   final int employeesHired;
 
+  /// Collected golden (VIP) contracts.
+  final int goldenContractsCompleted;
+
+  /// Marketing campaigns started.
+  final int campaignsRun;
+
   const GameStats({
     this.contractsCompleted = 0,
     this.lifetimeEarnings = 0,
     this.employeesHired = 0,
+    this.goldenContractsCompleted = 0,
+    this.campaignsRun = 0,
   });
 
   GameStats copyWith({
     int? contractsCompleted,
     double? lifetimeEarnings,
     int? employeesHired,
+    int? goldenContractsCompleted,
+    int? campaignsRun,
   }) =>
       GameStats(
         contractsCompleted: contractsCompleted ?? this.contractsCompleted,
         lifetimeEarnings: lifetimeEarnings ?? this.lifetimeEarnings,
         employeesHired: employeesHired ?? this.employeesHired,
+        goldenContractsCompleted:
+            goldenContractsCompleted ?? this.goldenContractsCompleted,
+        campaignsRun: campaignsRun ?? this.campaignsRun,
       );
 
   factory GameStats.fromJson(Map<String, dynamic> json) => GameStats(
         contractsCompleted: json['contractsCompleted'] as int? ?? 0,
         lifetimeEarnings: (json['lifetimeEarnings'] as num?)?.toDouble() ?? 0,
         employeesHired: json['employeesHired'] as int? ?? 0,
+        goldenContractsCompleted: json['goldenContractsCompleted'] as int? ?? 0,
+        campaignsRun: json['campaignsRun'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
         'contractsCompleted': contractsCompleted,
         'lifetimeEarnings': lifetimeEarnings,
         'employeesHired': employeesHired,
+        'goldenContractsCompleted': goldenContractsCompleted,
+        'campaignsRun': campaignsRun,
       };
 }
 
@@ -378,6 +463,17 @@ class GameState {
   final List<Employee> employees;
   final GameStats stats;
 
+  /// Marketing campaigns, running or just ended (`advance()` removes ended
+  /// ones). Use `GameEngine.activeCampaigns` to list the running ones.
+  final List<ActiveCampaign> campaigns;
+
+  /// Ids of achievements the player has reached.
+  final Set<String> achievementsUnlocked;
+
+  /// Ids of achievements whose reward was paid out. Always a subset of
+  /// [achievementsUnlocked].
+  final Set<String> achievementsClaimed;
+
   const GameState({
     required this.balance,
     required this.energy,
@@ -390,6 +486,9 @@ class GameState {
     required this.contracts,
     required this.employees,
     required this.stats,
+    this.campaigns = const [],
+    this.achievementsUnlocked = const {},
+    this.achievementsClaimed = const {},
   });
 
   // ---- Queries -------------------------------------------------------------
@@ -437,6 +536,13 @@ class GameState {
   int get contractsReadyToCollect =>
       contracts.where((c) => c.isCompleted).length;
 
+  bool isAchievementUnlocked(String id) => achievementsUnlocked.contains(id);
+  bool isAchievementClaimed(String id) => achievementsClaimed.contains(id);
+
+  /// Reached achievements whose reward is waiting to be claimed.
+  int get achievementsToClaim =>
+      achievementsUnlocked.difference(achievementsClaimed).length;
+
   GameState copyWith({
     double? balance,
     double? energy,
@@ -449,6 +555,9 @@ class GameState {
     List<Contract>? contracts,
     List<Employee>? employees,
     GameStats? stats,
+    List<ActiveCampaign>? campaigns,
+    Set<String>? achievementsUnlocked,
+    Set<String>? achievementsClaimed,
   }) =>
       GameState(
         balance: balance ?? this.balance,
@@ -462,6 +571,9 @@ class GameState {
         contracts: contracts ?? this.contracts,
         employees: employees ?? this.employees,
         stats: stats ?? this.stats,
+        campaigns: campaigns ?? this.campaigns,
+        achievementsUnlocked: achievementsUnlocked ?? this.achievementsUnlocked,
+        achievementsClaimed: achievementsClaimed ?? this.achievementsClaimed,
       );
 
   // ---- Serialization -------------------------------------------------------
@@ -483,6 +595,9 @@ class GameState {
         'contracts': contracts.map((c) => c.toJson()).toList(),
         'employees': employees.map((e) => e.toJson()).toList(),
         'stats': stats.toJson(),
+        'campaigns': campaigns.map((c) => c.toJson()).toList(),
+        'achievementsUnlocked': achievementsUnlocked.toList()..sort(),
+        'achievementsClaimed': achievementsClaimed.toList()..sort(),
       };
 
   /// Throws [FormatException] if the save is unreadable or from a newer
@@ -493,6 +608,8 @@ class GameState {
       throw FormatException('Unsupported save version: $version');
     }
     // Future migrations go here: `if (version < 2) json = _migrateV1(json);`
+    // Keys added within version 1 (campaigns, achievements, applicant expiry,
+    // new stats) are optional and default to empty/zero when missing.
     try {
       return GameState(
         balance: (json['balance'] as num).toDouble(),
@@ -516,6 +633,12 @@ class GameState {
         employees: List.unmodifiable((json['employees'] as List)
             .map((e) => Employee.fromJson(e as Map<String, dynamic>))),
         stats: GameStats.fromJson(json['stats'] as Map<String, dynamic>),
+        campaigns: List.unmodifiable((json['campaigns'] as List? ?? const [])
+            .map((e) => ActiveCampaign.fromJson(e as Map<String, dynamic>))),
+        achievementsUnlocked: Set.unmodifiable(
+            (json['achievementsUnlocked'] as List? ?? const []).cast<String>()),
+        achievementsClaimed: Set.unmodifiable(
+            (json['achievementsClaimed'] as List? ?? const []).cast<String>()),
       );
     } on TypeError catch (e) {
       throw FormatException('Corrupt save: $e');
