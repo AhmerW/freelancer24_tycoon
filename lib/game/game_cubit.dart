@@ -67,6 +67,7 @@ class GameCubit extends Cubit<GameState> {
         title: 'Contract finished',
         message: '${c.client} in $city: collect ${dollar(c.netPay)}',
         avatarSeed: c.client,
+        chime: true,
       ));
     }
     _announceAchievements(result.newAchievements);
@@ -77,6 +78,7 @@ class GameCubit extends Cubit<GameState> {
         message: 'You earned ${dollar(result.awayEarnings)} '
             'in ${formatDuration(result.awayFor!)} away',
         lifetime: const Duration(seconds: 8),
+        chime: true,
       ));
     }
 
@@ -232,6 +234,7 @@ class GameCubit extends Cubit<GameState> {
         title: 'Achievement: ${a.title}',
         message: 'Claim your reward in Goals!',
         lifetime: const Duration(seconds: 5),
+        chime: true,
       ));
     }
   }

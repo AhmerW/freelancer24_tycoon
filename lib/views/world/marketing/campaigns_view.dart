@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
@@ -129,7 +130,7 @@ class _CampaignCard extends StatelessWidget {
                         if (game.startCampaign(location.id, campaign.id)) {
                           Fx.of(buttonContext).floatText(
                               buttonContext, 'CAMPAIGN LIVE!',
-                              color: GameColors.gold);
+                              sound: Sound.levelup, color: GameColors.gold);
                         }
                       }
                     : null,

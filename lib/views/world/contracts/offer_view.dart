@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
@@ -213,6 +214,7 @@ class _OfferViewState extends State<OfferView> {
                       ? null
                       : () {
                           if (game.acceptOffer(offer.id, _selected.toList())) {
+                            Sfx.instance.play(Sound.whoosh);
                             widget.onAccepted();
                           }
                         },

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
@@ -141,6 +142,7 @@ class UpgradeView extends StatelessWidget {
                           } else {
                             fx.floatText(buttonContext,
                                 '+${item.rate.toStringAsFixed(0)}%',
+                                sound: Sound.levelup,
                                 color: const Color(0xFF9BF08A));
                           }
                         }

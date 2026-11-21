@@ -12,6 +12,7 @@ flutter test                         # unit tests + economy simulation
 flutter test test/economy_simulation_test.dart   # prints the pacing table
 flutter build ios --simulator --debug            # then launch Runner.app
 python3 tool/build_skills.py         # regenerate assets/data/skills.json
+python3 tool/build_sounds.py         # regenerate assets/sounds/*.wav
 ```
 
 Run `dart format lib test` before committing.
@@ -47,6 +48,10 @@ Run `dart format lib test` before committing.
     Call it from a `Builder` context of the button that triggered the action,
     after the cubit action returned true.
   - `widgets/coach.dart`: first-run hints derived from game state (no save).
+- Sound: `lib/game/sfx.dart` (`Sfx.instance.play(Sound.x)`). Buttons, coins,
+  confetti and chime notices already play sounds. The WAVs in
+  `assets/sounds/` are synthesized by `python3 tool/build_sounds.py`; tweak a
+  recipe there and re-run rather than adding sampled audio.
 
 ## Content
 

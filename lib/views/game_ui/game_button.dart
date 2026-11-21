@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 
@@ -138,6 +139,7 @@ class _GameButtonState extends State<GameButton> {
         onTap: _enabled
             ? () {
                 HapticFeedback.lightImpact();
+                Sfx.instance.play(Sound.tap);
                 widget.onPressed!();
               }
             : null,
@@ -206,6 +208,7 @@ class _BouncyState extends State<Bouncy> {
           ? null
           : () {
               HapticFeedback.selectionClick();
+              Sfx.instance.play(Sound.click, volume: 0.8);
               widget.onTap!();
             },
       child: AnimatedScale(

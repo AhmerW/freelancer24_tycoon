@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
@@ -61,6 +62,16 @@ class SettingsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: Sfx.instance.muted,
+              builder: (context, muted, _) => GameButton(
+                tone: muted ? GameTone.grey : GameTone.green,
+                icon: muted ? Icons.volume_off : Icons.volume_up,
+                label: muted ? 'SOUND: OFF' : 'SOUND: ON',
+                onPressed: () => Sfx.instance.setMuted(!muted),
+              ),
+            ),
+            const SizedBox(height: 12),
             GameButton(
               tone: GameTone.red,
               icon: Icons.restart_alt,

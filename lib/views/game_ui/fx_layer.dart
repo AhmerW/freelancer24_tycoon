@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
@@ -71,6 +72,7 @@ class FxController extends State<FxLayer> {
             end: end,
             delay: Duration(milliseconds: i * 45),
             onDone: () {
+              Sfx.instance.coin();
               moneyPulse.value++;
               done();
             },
@@ -80,9 +82,10 @@ class FxController extends State<FxLayer> {
 
   /// Text that pops up above [from] and floats away.
   void floatText(BuildContext from, String text,
-      {Color color = Colors.white, double size = 26}) {
+      {Color color = Colors.white, double size = 26, Sound? sound}) {
     final start = _centerOf(from);
     if (start == null) return;
+    if (sound != null) Sfx.instance.play(sound);
     _add((key, done) => _FloatingText(
         key: key,
         at: start,
@@ -99,6 +102,7 @@ class FxController extends State<FxLayer> {
         : _centerOf(from);
     if (at == null) return;
     HapticFeedback.heavyImpact();
+    Sfx.instance.play(Sound.fanfare);
     _add((key, done) => _ConfettiBurst(key: key, at: at, onDone: done));
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/goals/goals_view.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
@@ -109,7 +110,10 @@ class GameTabBar extends StatelessWidget {
                     tab: tabs[i],
                     selected: i == index,
                     onTap: () {
-                      if (i != index) HapticFeedback.selectionClick();
+                      if (i != index) {
+                        HapticFeedback.selectionClick();
+                        Sfx.instance.play(Sound.click, volume: 0.8);
+                      }
                       onSelect(i);
                     },
                   ),

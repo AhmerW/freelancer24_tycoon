@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
@@ -103,7 +104,7 @@ class EmployeeOfferView extends StatelessWidget {
                             if (onHire()) {
                               Fx.of(buttonContext).floatText(
                                   buttonContext, 'HIRED!',
-                                  color: GameColors.gold);
+                                  sound: Sound.levelup, color: GameColors.gold);
                             }
                           }
                         : null,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/game/game_notice.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 
 /// The notices currently on screen. Expired notices remove themselves.
 class AlertCubit extends Cubit<List<GameNotice>> {
@@ -16,6 +17,11 @@ class AlertCubit extends Cubit<List<GameNotice>> {
 
   void push(GameNotice notice) {
     if (isClosed) return;
+    if (notice.kind == NoticeKind.error) {
+      Sfx.instance.play(Sound.error);
+    } else if (notice.chime) {
+      Sfx.instance.play(Sound.ding);
+    }
     final visible = [...state, notice];
     while (visible.length > maxVisible) {
       _timers.remove(visible.removeAt(0).id)?.cancel();

@@ -15,11 +15,15 @@ class GameNotice {
   /// How long the notice stays. Null = until dismissed.
   final Duration? lifetime;
 
+  /// Play a chime when shown (for important news, not routine feedback).
+  final bool chime;
+
   GameNotice({
     required this.kind,
     required this.title,
     this.message = '',
     this.avatarSeed,
     this.lifetime = const Duration(seconds: 4),
+    this.chime = false,
   }) : id = _nextId++;
 }

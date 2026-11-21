@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
@@ -13,6 +14,7 @@ import 'package:freelancer24_tycoon/views/world/city_page.dart';
 import 'package:freelancer24_tycoon/views/world/stats_view.dart';
 
 void openCity(BuildContext context, LocationDef location) {
+  Sfx.instance.play(Sound.whoosh, volume: 0.7);
   Navigator.of(context).push(
     PageRouteBuilder<void>(
       transitionDuration: const Duration(milliseconds: 320),

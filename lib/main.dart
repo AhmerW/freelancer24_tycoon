@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freelancer24_tycoon/core/content/content_loader.dart';
@@ -6,6 +8,7 @@ import 'package:freelancer24_tycoon/core/save/hive_save_store.dart';
 import 'package:freelancer24_tycoon/core/save/save_store.dart';
 import 'package:freelancer24_tycoon/game/alert_cubit.dart';
 import 'package:freelancer24_tycoon/game/game_cubit.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:freelancer24_tycoon/views/alerts/alerts_view.dart';
 import 'package:freelancer24_tycoon/views/game_ui/fx_layer.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
@@ -17,6 +20,8 @@ Future<void> main() async {
 
   final content = await loadGameContent();
   final saves = SaveRepository(await HiveSaveStore.open());
+  // Loads in the background; the game starts without waiting for audio.
+  unawaited(Sfx.instance.init());
   final engine = GameEngine(content);
   final saved = await saves.load();
 

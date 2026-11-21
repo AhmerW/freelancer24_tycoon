@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:freelancer24_tycoon/game/sfx.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/utils/format.dart';
@@ -243,7 +244,7 @@ class SkillCard extends StatelessWidget {
                         final fx = Fx.of(buttonContext);
                         if (unlocked) {
                           fx.floatText(buttonContext, 'LEVEL ${level + 1}!',
-                              color: GameColors.gold);
+                              sound: Sound.levelup, color: GameColors.gold);
                         } else {
                           fx.floatText(buttonContext, 'NEW SKILL!',
                               color: GameColors.gold);
