@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/core/engine/game_engine.dart';
@@ -10,8 +12,10 @@ import 'helpers.dart';
 ///
 /// Schedule: 4 sessions a day, 15 minutes each, 5-second ticks while playing,
 /// one big offline jump in between (exactly what the app does on resume).
-/// The bot collects pay, takes solo contracts, unlocks cities when it has
-/// 1.5x their price, and spends the rest on the best income-per-dollar buy.
+/// The bot collects pay, takes solo contracts, claims achievements, runs
+/// online ads in the city it works in when they cost under 10% of its cash,
+/// unlocks cities when it has 1.5x their price, and spends the rest on the
+/// best income-per-dollar buy.
 ///
 /// Run with `flutter test test/economy_simulation_test.dart` to see the
 /// milestone table when tuning `Balance`.
@@ -34,9 +38,10 @@ void main() {
       for (var i = 0; i < sessionsPerDay; i++) {
         final start =
             t0.add(Duration(days: day, hours: i * 24 ~/ sessionsPerDay));
-        s = engine.advance(s, start).state; // offline catch-up
+        // Offline catch-up, then play.
+        s = _advance(engine, s, start, mark);
         for (var t = start; t.isBefore(start.add(session)); t = t.add(tick)) {
-          s = engine.advance(s, t).state;
+          s = _advance(engine, s, t, mark);
           s = _playTurn(engine, s, t, mark);
         }
       }
@@ -50,7 +55,13 @@ void main() {
     // ignore: avoid_print
     print('Economy milestones (bot, 4x15min/day):\n$table\n'
         'Final income: ${dollar(engine.incomePerSecond(s) * 3600)}/h, '
-        'skills ${s.skillLevels.length}/${content.skills.length}');
+        'skills ${s.skillLevels.length}/${content.skills.length}, '
+        'achievements ${s.achievementsClaimed.length}/'
+        '${content.achievements.length}, '
+        'campaigns ${s.stats.campaignsRun}, '
+        'contracts ${s.stats.contractsCompleted}, '
+        'top skill level ${s.skillLevels.values.reduce(max)}, '
+        'lifetime ${dollar(s.stats.lifetimeEarnings)}');
 
     Duration at(String key) => milestones[key] ?? const Duration(days: 999);
     Duration learned(int n) => at('learned $n skills');
@@ -68,6 +79,19 @@ void main() {
   });
 }
 
+GameState _advance(
+  GameEngine engine,
+  GameState s,
+  DateTime now,
+  void Function(String, DateTime) mark,
+) {
+  final result = engine.advance(s, now);
+  for (final a in result.newAchievements) {
+    mark('achievement ${a.title}', now);
+  }
+  return result.state;
+}
+
 GameState _playTurn(
   GameEngine engine,
   GameState s,
@@ -78,6 +102,20 @@ GameState _playTurn(
 
   for (final c in s.contracts.where((c) => c.isCompleted).toList()) {
     s = engine.collectContract(s, c.id);
+  }
+  for (final id in s.achievementsUnlocked.difference(s.achievementsClaimed)) {
+    s = engine.claimAchievement(s, id);
+  }
+
+  // Ads where the bot works: the city of its last contract.
+  final city = s.contracts.isEmpty
+      ? content.startingLocation.id
+      : s.contracts.last.locationId;
+  for (final campaign in content.campaigns.where((c) => c.id == 'online')) {
+    if (engine.campaignBlocker(s, city, campaign, now) == null &&
+        engine.campaignCost(s, campaign) < s.balance * 0.1) {
+      s = engine.startCampaign(s, city, campaign.id, now);
+    }
   }
 
   if (!s.playerBusy) {

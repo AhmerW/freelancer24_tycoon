@@ -7,5 +7,7 @@ Future<GameContent> loadGameContent([AssetBundle? bundle]) async {
     skillsJson: await b.loadString('assets/data/skills.json'),
     upgradesJson: await b.loadString('assets/data/upgrades.json'),
     locationsJson: await b.loadString('assets/data/locations.json'),
+    marketingJson: await b.loadString('assets/data/marketing.json'),
+    achievementsJson: await b.loadString('assets/data/achievements.json'),
   );
 }

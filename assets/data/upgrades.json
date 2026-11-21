@@ -147,6 +147,80 @@
                 }
             ],
             "effect": "income"
+        },
+        {
+            "name": "Laptop",
+            "category": "laptop",
+            "id": 2,
+            "upgrades": [
+                {
+                    "id": 0,
+                    "name": "Hand-me-down Laptop",
+                    "description": "Sticky keys, loud fan, but it boots. Eventually.",
+                    "icon": "laptop-1.png",
+                    "tier": 1,
+                    "unlockOnPreviousLevel": 0,
+                    "price": 50,
+                    "rate": 0.5,
+                    "levelPriceRate": 1.2
+                },
+                {
+                    "id": 1,
+                    "name": "Sticker-Covered Notebook",
+                    "description": "Every sticker adds +1 coding speed. Science.",
+                    "icon": "laptop-2.png",
+                    "tier": 2,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 2000,
+                    "rate": 1.0,
+                    "levelPriceRate": 1.4
+                },
+                {
+                    "id": 2,
+                    "name": "Featherweight Ultrabook",
+                    "description": "So light you forget it's in your bag.",
+                    "icon": "laptop-3.png",
+                    "tier": 3,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 80000,
+                    "rate": 1.5,
+                    "levelPriceRate": 1.7
+                },
+                {
+                    "id": 3,
+                    "name": "Dual-Screen Desk Setup",
+                    "description": "Two screens, twice the tabs, half the waiting.",
+                    "icon": "laptop-4.png",
+                    "tier": 4,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 3000000,
+                    "rate": 2.0,
+                    "levelPriceRate": 2.0
+                },
+                {
+                    "id": 4,
+                    "name": "Glowing Battlestation",
+                    "description": "Rainbow lights make everything render faster.",
+                    "icon": "laptop-5.png",
+                    "tier": 5,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 120000000,
+                    "rate": 2.5,
+                    "levelPriceRate": 2.5
+                },
+                {
+                    "id": 5,
+                    "name": "Quantum Workstation",
+                    "description": "Finishes your work before you even start it.",
+                    "icon": "laptop-6.png",
+                    "tier": 6,
+                    "unlockOnPreviousLevel": 10,
+                    "price": 5000000000,
+                    "rate": 3.0,
+                    "levelPriceRate": 3.0
+                }
+            ],
+            "effect": "contractSpeed"
         }
     ]
 }

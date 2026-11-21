@@ -25,12 +25,56 @@ class TickResult {
   final Duration? awayFor;
   final double awayEarnings;
 
+  /// Achievements reached during this tick (their rewards still need to be
+  /// claimed with `GameEngine.claimAchievement`).
+  final List<AchievementDef> newAchievements;
+
   const TickResult(
     this.state, {
     this.completed = const [],
     this.awayFor,
     this.awayEarnings = 0,
+    this.newAchievements = const [],
   });
+}
+
+/// Result of [GameEngine.checkAchievements].
+class AchievementCheck {
+  final GameState state;
+
+  /// Achievements that became unlocked in this check.
+  final List<AchievementDef> unlocked;
+
+  const AchievementCheck(this.state, [this.unlocked = const []]);
+}
+
+/// How far the player is towards an achievement.
+class AchievementProgress {
+  final double current;
+  final double target;
+
+  const AchievementProgress(this.current, this.target);
+
+  /// 0 to 1, for progress bars.
+  double get fraction => target <= 0 ? 1 : (current / target).clamp(0.0, 1.0);
+  bool get reached => current >= target;
+}
+
+/// Combined effect of the marketing campaigns running in a location.
+class CampaignEffects {
+  final int extraOffers;
+  final double offerCooldownMultiplier;
+  final double payMultiplier;
+  final double goldenChanceBonus;
+
+  const CampaignEffects({
+    this.extraOffers = 0,
+    this.offerCooldownMultiplier = 1,
+    this.payMultiplier = 1,
+    this.goldenChanceBonus = 0,
+  });
+
+  static const none = CampaignEffects();
 }
 
 /// All game rules. Pure Dart, no Flutter: every method takes a state and
@@ -93,6 +137,10 @@ class GameEngine {
       Balance.energyRegenPerSecond *
       (1 + upgradeBonus(s, UpgradeEffect.energyRegen) / 100);
 
+  /// New offers take `base duration / this`. 1 = no speed-up.
+  double contractSpeedMultiplier(GameState s) =>
+      1 + upgradeBonus(s, UpgradeEffect.contractSpeed) / 100;
+
   double wagesPerSecond(GameState s) => s.employees
       .where((e) => e.isHired)
       .fold(0.0, (sum, e) => sum + e.wagePerHour / 3600);
@@ -144,11 +192,18 @@ class GameEngine {
 
   // ---- Upgrades -------------------------------------------------------------
 
+  /// Progress in [line]. Lines added after the save was made start at the
+  /// first item, level 1.
+  UpgradeProgress upgradeProgress(GameState s, UpgradeLineDef line) =>
+      s.upgrades[line.id] ?? _firstUpgrade;
+
+  static const _firstUpgrade = UpgradeProgress(itemIndex: 0, level: 1);
+
   UpgradeItemDef currentItem(GameState s, UpgradeLineDef line) =>
-      line.items[s.upgrades[line.id]?.itemIndex ?? 0];
+      line.items[upgradeProgress(s, line).itemIndex];
 
   UpgradeItemDef? nextItem(GameState s, UpgradeLineDef line) {
-    final i = (s.upgrades[line.id]?.itemIndex ?? 0) + 1;
+    final i = upgradeProgress(s, line).itemIndex + 1;
     return i < line.items.length ? line.items[i] : null;
   }
 
@@ -203,6 +258,129 @@ class GameEngine {
     return s.employee(personId)?.levelOf(skillId) ?? 0;
   }
 
+  // ---- Marketing campaigns --------------------------------------------------
+
+  double campaignCost(GameState s, CampaignDef campaign) =>
+      max(campaign.minCost, incomePerSecond(s) * campaign.costIncomeSeconds);
+
+  /// Campaigns running in [locationId] at [now].
+  List<ActiveCampaign> activeCampaigns(
+          GameState s, int locationId, DateTime now) =>
+      s.campaigns
+          .where((c) => c.locationId == locationId && c.isRunning(now))
+          .toList(growable: false);
+
+  /// The running campaign [campaignId] in [locationId], or null.
+  ActiveCampaign? activeCampaign(
+      GameState s, int locationId, String campaignId, DateTime now) {
+    for (final c in activeCampaigns(s, locationId, now)) {
+      if (c.campaignId == campaignId) return c;
+    }
+    return null;
+  }
+
+  /// Why [campaign] can't be started in [locationId] right now (ignoring
+  /// money), or null.
+  String? campaignBlocker(
+      GameState s, int locationId, CampaignDef campaign, DateTime now) {
+    final location = _location(locationId);
+    if (!s.isLocationUnlocked(locationId)) {
+      return 'Unlock ${location.city} first';
+    }
+    if (activeCampaign(s, locationId, campaign.id, now) != null) {
+      return '${campaign.name} is already running in ${location.city}';
+    }
+    return null;
+  }
+
+  /// All running campaigns in [locationId] combined.
+  CampaignEffects campaignEffects(GameState s, int locationId, DateTime now) {
+    final running = activeCampaigns(s, locationId, now);
+    if (running.isEmpty) return CampaignEffects.none;
+    var extra = 0;
+    var cooldown = 1.0, pay = 1.0, golden = 0.0;
+    for (final active in running) {
+      final c = content.campaignOrNull(active.campaignId);
+      if (c == null) continue;
+      extra += c.extraOffers;
+      cooldown *= c.offerCooldownMultiplier;
+      pay *= c.payMultiplier;
+      golden += c.goldenChanceBonus;
+    }
+    return CampaignEffects(
+      extraOffers: extra,
+      offerCooldownMultiplier: cooldown,
+      payMultiplier: pay,
+      goldenChanceBonus: golden,
+    );
+  }
+
+  /// How many offers [locationId] can show at once, campaigns included.
+  int maxOffersAt(GameState s, int locationId, DateTime now) =>
+      _location(locationId).maxOffers +
+      campaignEffects(s, locationId, now).extraOffers;
+
+  /// Wait between new offers in [locationId], campaigns included.
+  Duration offerCooldownAt(GameState s, int locationId, DateTime now) =>
+      Balance.offerCooldown *
+      campaignEffects(s, locationId, now).offerCooldownMultiplier;
+
+  // ---- Achievements ---------------------------------------------------------
+
+  /// Current value versus target of [achievement]'s condition.
+  AchievementProgress achievementProgress(
+      GameState s, AchievementDef achievement) {
+    final c = achievement.condition;
+    final stats = s.stats;
+    return switch (c.type) {
+      AchievementConditionType.skillsLearned =>
+        AchievementProgress(s.skillLevels.length.toDouble(), c.value),
+      AchievementConditionType.contractsCompleted =>
+        AchievementProgress(stats.contractsCompleted.toDouble(), c.value),
+      AchievementConditionType.goldenContractsCompleted =>
+        AchievementProgress(stats.goldenContractsCompleted.toDouble(), c.value),
+      AchievementConditionType.lifetimeEarnings =>
+        AchievementProgress(stats.lifetimeEarnings, c.value),
+      AchievementConditionType.employeesHired =>
+        AchievementProgress(stats.employeesHired.toDouble(), c.value),
+      AchievementConditionType.citiesUnlocked =>
+        AchievementProgress(s.locations.length.toDouble(), c.value),
+      AchievementConditionType.campaignsRun =>
+        AchievementProgress(stats.campaignsRun.toDouble(), c.value),
+      AchievementConditionType.skillLevel => AchievementProgress(
+          s.skillLevels.values.fold(0, max).toDouble(), c.value),
+      AchievementConditionType.trackCompleted => () {
+          final skills = content.skillsInTrack(c.trackId!);
+          final learned = skills.where((k) => s.isSkillUnlocked(k.id)).length;
+          return AchievementProgress(
+              learned.toDouble(), skills.length.toDouble());
+        }(),
+    };
+  }
+
+  /// Cash paid when [achievement] is claimed now.
+  double achievementReward(GameState s, AchievementDef achievement) => max(
+      achievement.rewardMin,
+      incomePerSecond(s) * achievement.rewardIncomeSeconds);
+
+  /// Unlocks every achievement whose condition is met. `advance()` calls
+  /// this; call it after actions too for instant feedback.
+  AchievementCheck checkAchievements(GameState s) {
+    final unlocked = [
+      for (final a in content.achievements)
+        if (!s.isAchievementUnlocked(a.id) && achievementProgress(s, a).reached)
+          a,
+    ];
+    if (unlocked.isEmpty) return AchievementCheck(s);
+    return AchievementCheck(
+      s.copyWith(
+        achievementsUnlocked: Set.unmodifiable(
+            {...s.achievementsUnlocked, for (final a in unlocked) a.id}),
+      ),
+      List.unmodifiable(unlocked),
+    );
+  }
+
   // ===========================================================================
   // Time
   // ===========================================================================
@@ -211,6 +389,7 @@ class GameEngine {
   /// finished contracts, new offers and applicants. Handles long gaps
   /// (app closed) with the offline rules from [Balance].
   TickResult advance(GameState s, DateTime now) {
+    s = _repair(s, now);
     final elapsed = now.difference(s.lastTick);
     if (elapsed <= Duration.zero) {
       // Clock moved backwards (or no time passed): just re-anchor.
@@ -246,9 +425,10 @@ class GameEngine {
     final finishedIds = completed.map((c) => c.id).toSet();
     final employees = [
       for (final e in s.employees)
-        finishedIds.contains(e.contractId)
-            ? e.copyWith(contractId: () => null)
-            : e
+        if (finishedIds.contains(e.contractId))
+          e.copyWith(contractId: () => null)
+        else if (!e.isExpired(now)) // applicants who waited too long leave
+          e
     ];
 
     var next = s.copyWith(
@@ -257,16 +437,21 @@ class GameEngine {
       lastTick: now,
       contracts: List.unmodifiable(contracts),
       employees: List.unmodifiable(employees),
+      campaigns: s.campaigns.every((c) => c.isRunning(now))
+          ? s.campaigns
+          : List.unmodifiable(s.campaigns.where((c) => c.isRunning(now))),
       stats:
           s.stats.copyWith(lifetimeEarnings: s.stats.lifetimeEarnings + earned),
     );
     next = _refill(next, now);
+    final check = checkAchievements(next);
 
     return TickResult(
-      next,
+      check.state,
       completed: completed,
       awayFor: away ? elapsed : null,
       awayEarnings: away ? earned : 0,
+      newAchievements: check.unlocked,
     );
   }
 
@@ -300,7 +485,7 @@ class GameEngine {
   /// Raises the level of the current item in an upgrade line.
   GameState upgradeItemLevel(GameState s, int lineId) {
     final line = _line(lineId);
-    final progress = s.upgrades[lineId]!;
+    final progress = upgradeProgress(s, line);
     final item = line.items[progress.itemIndex];
     if (progress.level >= maxItemLevel(s, line)) {
       throw GameRuleException(nextItem(s, line) == null
@@ -321,7 +506,7 @@ class GameEngine {
   /// Replaces the current item of an upgrade line with the next one.
   GameState buyNextItem(GameState s, int lineId) {
     final line = _line(lineId);
-    final progress = s.upgrades[lineId]!;
+    final progress = upgradeProgress(s, line);
     final next = nextItem(s, line);
     if (next == null) throw const GameRuleException('Nothing left to buy here');
     if (progress.level < next.unlockOnPreviousLevel) {
@@ -375,14 +560,19 @@ class GameEngine {
     if (candidate.isHired) {
       throw GameRuleException('${candidate.name} already works for you');
     }
+    if (candidate.isExpired(now)) {
+      throw GameRuleException('${candidate.name} already took another job');
+    }
     final progress = _locationProgress(s, candidate.locationId);
     if (s.hiredAt(candidate.locationId).length >= progress.employeeSlots) {
       throw const GameRuleException('Buy another desk before hiring');
     }
     final paid = _pay(s, candidate.hireCost, 'hire ${candidate.name}');
     return paid.copyWith(
-      employees:
-          _replaceEmployee(s, candidate.copyWith(status: EmployeeStatus.hired)),
+      employees: _replaceEmployee(
+          s,
+          candidate.copyWith(
+              status: EmployeeStatus.hired, expiresAt: () => null)),
       locations: _bumpCandidateTimer(s, candidate.locationId, now),
       stats: paid.stats.copyWith(employeesHired: paid.stats.employeesHired + 1),
     );
@@ -510,8 +700,70 @@ class GameEngine {
           List.unmodifiable(s.contracts.where((c) => c.id != contractId)),
       stats: s.stats.copyWith(
         contractsCompleted: s.stats.contractsCompleted + 1,
+        goldenContractsCompleted:
+            s.stats.goldenContractsCompleted + (contract.golden ? 1 : 0),
         lifetimeEarnings: s.stats.lifetimeEarnings + contract.netPay,
       ),
+    );
+  }
+
+  /// Starts [campaignId] in [locationId] until `now + duration`.
+  GameState startCampaign(
+    GameState s,
+    int locationId,
+    String campaignId,
+    DateTime now,
+  ) {
+    final campaign = content.campaignOrNull(campaignId) ??
+        (throw const GameRuleException('Unknown campaign'));
+    final blocker = campaignBlocker(s, locationId, campaign, now);
+    if (blocker != null) throw GameRuleException(blocker);
+    final paid = _pay(
+        s, campaignCost(s, campaign), 'run ${campaign.name.toLowerCase()}');
+
+    var next = paid.copyWith(
+      campaigns: List.unmodifiable([
+        ...s.campaigns.where((c) => c.isRunning(now)),
+        ActiveCampaign(
+          locationId: locationId,
+          campaignId: campaignId,
+          endsAt: now.add(campaign.duration),
+        ),
+      ]),
+      stats: paid.stats.copyWith(campaignsRun: paid.stats.campaignsRun + 1),
+    );
+    if (campaign.extraOffers > 0) {
+      // The extra clients show up right away.
+      final p = next.locations[locationId]!;
+      final earliest = now.subtract(
+          offerCooldownAt(next, locationId, now) * (campaign.extraOffers - 1));
+      next = next.copyWith(
+        locations: Map.unmodifiable({
+          ...next.locations,
+          locationId: p.copyWith(
+              nextOfferAt:
+                  p.nextOfferAt.isBefore(earliest) ? p.nextOfferAt : earliest),
+        }),
+      );
+    }
+    return _refill(next, now);
+  }
+
+  /// Pays the reward of a reached achievement, once.
+  GameState claimAchievement(GameState s, String achievementId) {
+    final achievement = content.achievementOrNull(achievementId) ??
+        (throw const GameRuleException('Unknown achievement'));
+    final checked = checkAchievements(s).state;
+    if (checked.isAchievementClaimed(achievementId)) {
+      throw const GameRuleException('Reward already claimed');
+    }
+    if (!checked.isAchievementUnlocked(achievementId)) {
+      throw GameRuleException('Not there yet: ${achievement.description}');
+    }
+    return checked.copyWith(
+      balance: checked.balance + achievementReward(checked, achievement),
+      achievementsClaimed:
+          Set.unmodifiable({...checked.achievementsClaimed, achievementId}),
     );
   }
 
@@ -537,15 +789,17 @@ class GameEngine {
       final employees = [...state.employees];
       var nextId = state.nextId;
 
+      final effects = campaignEffects(state, location.id, now);
+      final maxOffers = location.maxOffers + effects.extraOffers;
+      final cooldown = Balance.offerCooldown * effects.offerCooldownMultiplier;
       var offers = contracts
           .where((c) => c.locationId == location.id && c.isOffer)
           .length;
-      while (
-          offers < location.maxOffers && !progress.nextOfferAt.isAfter(now)) {
-        contracts.add(_generateOffer(state, location, nextId++));
+      while (offers < maxOffers && !progress.nextOfferAt.isAfter(now)) {
+        contracts.add(_generateOffer(state, location, nextId++, effects));
         offers++;
-        progress = progress.copyWith(
-            nextOfferAt: progress.nextOfferAt.add(Balance.offerCooldown));
+        progress =
+            progress.copyWith(nextOfferAt: progress.nextOfferAt.add(cooldown));
       }
 
       var candidates = employees
@@ -553,7 +807,8 @@ class GameEngine {
           .length;
       while (candidates < location.maxEmployeeOffers &&
           !progress.nextCandidateAt.isAfter(now)) {
-        employees.add(_generateCandidate(state, location, nextId++, employees));
+        employees
+            .add(_generateCandidate(state, location, nextId++, employees, now));
         candidates++;
         progress = progress.copyWith(
             nextCandidateAt:
@@ -573,7 +828,12 @@ class GameEngine {
     return state;
   }
 
-  Contract _generateOffer(GameState s, LocationDef location, int id) {
+  Contract _generateOffer(
+    GameState s,
+    LocationDef location,
+    int id,
+    CampaignEffects effects,
+  ) {
     final unlocked = s.skillLevels.length;
 
     // Duration grows as the player progresses.
@@ -581,8 +841,11 @@ class GameEngine {
         Balance.contractMinSecondsPerSkill * (unlocked - 1);
     final maxSec = Balance.contractMaxSecondsBase +
         Balance.contractMaxSecondsPerSkill * (unlocked - 1);
-    final duration =
-        Duration(seconds: minSec + _random.nextInt(maxSec - minSec + 1));
+    final baseSeconds = minSec + _random.nextInt(maxSec - minSec + 1);
+    // Faster laptops shorten the work but not the pay.
+    final duration = Duration(
+        seconds: max(Balance.contractMinSeconds,
+            (baseSeconds / contractSpeedMultiplier(s)).round()));
 
     // People: 1 until the player has staff here, then up to staff + 1.
     final staff = s.hiredAt(location.id).length;
@@ -614,11 +877,11 @@ class GameEngine {
         ),
     ]..sort((a, b) => a.skillId - b.skillId);
 
-    final golden = _random.nextDouble() < Balance.goldenChance;
+    final golden =
+        _random.nextDouble() < Balance.goldenChance + effects.goldenChanceBonus;
     final pay = (Balance.contractBasePay +
-            incomePerSecond(s) *
-                duration.inSeconds *
-                Balance.contractIncomeMultiple) *
+            incomePerSecond(s) * baseSeconds * Balance.contractIncomeMultiple) *
+        effects.payMultiplier *
         location.rate *
         (1 + Balance.extraPersonPayBonus * (people - 1)) *
         (1 + Balance.perRequirementPayBonus * requirements.length) *
@@ -645,6 +908,7 @@ class GameEngine {
     LocationDef location,
     int id,
     List<Employee> existing,
+    DateTime now,
   ) {
     final usedNames = existing
         .where((e) => e.locationId == location.id)
@@ -689,6 +953,7 @@ class GameEngine {
       hireCost: hireCost,
       fireCost: hireCost * Balance.fireCostOfHireCost,
       skills: Map.unmodifiable(skills),
+      expiresAt: now.add(_candidateLifetime()),
     );
   }
 
@@ -697,6 +962,35 @@ class GameEngine {
   // ===========================================================================
 
   T _pick<T>(List<T> list) => list[_random.nextInt(list.length)];
+
+  Duration _candidateLifetime() =>
+      Balance.candidateLifetime *
+      (1 + Balance.candidateLifetimeJitter * (2 * _random.nextDouble() - 1));
+
+  /// Brings a state (e.g. from an older save) in line with the current
+  /// content and rules. Returns [s] itself when nothing needs fixing.
+  GameState _repair(GameState s, DateTime now) {
+    final missingLines =
+        content.upgradeLines.where((l) => !s.upgrades.containsKey(l.id));
+    final undated = s.employees.any((e) => !e.isHired && e.expiresAt == null);
+    if (missingLines.isEmpty && !undated) return s;
+    return s.copyWith(
+      upgrades: missingLines.isEmpty
+          ? null
+          : Map.unmodifiable({
+              ...s.upgrades,
+              for (final line in missingLines) line.id: _firstUpgrade,
+            }),
+      employees: !undated
+          ? null
+          : List.unmodifiable([
+              for (final e in s.employees)
+                !e.isHired && e.expiresAt == null
+                    ? e.copyWith(expiresAt: () => now.add(_candidateLifetime()))
+                    : e
+            ]),
+    );
+  }
 
   /// A required level a few below the player's [level]; with [canStretch]
   /// it may also be one above.
@@ -753,7 +1047,7 @@ class GameEngine {
   Map<int, LocationProgress> _bumpOfferTimer(
       GameState s, int locationId, DateTime now) {
     final p = s.locations[locationId]!;
-    final earliest = now.add(Balance.offerCooldown);
+    final earliest = now.add(offerCooldownAt(s, locationId, now));
     return Map.unmodifiable({
       ...s.locations,
       locationId: p.copyWith(

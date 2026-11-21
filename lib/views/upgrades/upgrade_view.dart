@@ -20,8 +20,7 @@ class UpgradeView extends StatelessWidget {
   String get _effectLabel => switch (line.effect) {
         UpgradeEffect.income => 'INCOME',
         UpgradeEffect.energyRegen => 'ENERGY REFILL',
-        // ignore: unreachable_switch_case
-        _ => 'BONUS',
+        UpgradeEffect.contractSpeed => 'JOB SPEED',
       };
 
   @override

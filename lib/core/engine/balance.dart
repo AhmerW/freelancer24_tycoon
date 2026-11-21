@@ -60,9 +60,17 @@ abstract final class Balance {
   static const int contractMaxSecondsPerSkill = 120;
   static const Duration offerCooldown = Duration(seconds: 30);
 
+  /// Shortest a contract can get with contract-speed upgrades.
+  static const int contractMinSeconds = 5;
+
   // ---- Employees -----------------------------------------------------------
 
   static const Duration candidateCooldown = Duration(seconds: 60);
+
+  /// How long a job applicant waits before leaving, randomized by
+  /// `1 ± candidateLifetimeJitter`. Hired employees never leave.
+  static const Duration candidateLifetime = Duration(minutes: 20);
+  static const double candidateLifetimeJitter = 0.25;
 
   /// Hire cost is worth this many seconds of current income (with a floor).
   static const double hireCostIncomeSeconds = 600;

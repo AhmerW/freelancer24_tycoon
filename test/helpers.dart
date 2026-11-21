@@ -9,6 +9,9 @@ GameContent loadTestContent() => GameContent.fromJsonStrings(
       skillsJson: File('assets/data/skills.json').readAsStringSync(),
       upgradesJson: File('assets/data/upgrades.json').readAsStringSync(),
       locationsJson: File('assets/data/locations.json').readAsStringSync(),
+      marketingJson: File('assets/data/marketing.json').readAsStringSync(),
+      achievementsJson:
+          File('assets/data/achievements.json').readAsStringSync(),
     );
 
 GameEngine testEngine({int seed = 42}) =>
