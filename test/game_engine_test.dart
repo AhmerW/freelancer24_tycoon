@@ -19,12 +19,18 @@ void main() {
       s.copyWith(balance: amount);
 
   group('content', () {
-    test('loads skills in unlock order with increasing prices', () {
-      expect(content.skills, hasLength(19));
-      for (var i = 1; i < content.skills.length; i++) {
-        expect(
-            content.skills[i].price, greaterThan(content.skills[i - 1].price));
+    test('has 6 tracks of 7 skills with increasing prices', () {
+      expect(content.tracks, hasLength(6));
+      expect(content.skills, hasLength(42));
+      for (final track in content.tracks) {
+        final skills = content.skillsInTrack(track.id);
+        expect(skills.map((s) => s.step), [1, 2, 3, 4, 5, 6, 7]);
+        for (var i = 1; i < skills.length; i++) {
+          expect(skills[i].price, greaterThan(skills[i - 1].price));
+        }
       }
+      expect(content.skills.map((s) => s.id).toSet(), hasLength(42));
+      expect(content.startingSkill.key, 'html');
     });
 
     test('starting location is the free one', () {
@@ -154,10 +160,33 @@ void main() {
       expect(s.skillLevel(second.id), 1);
     });
 
-    test('skills must be unlocked in order', () {
+    test('skills in a track must be learned in order', () {
       final s = rich(engine.newGame(t0));
-      expect(() => engine.unlockSkill(s, content.skills[2].id),
+      final third = content.skillsInTrack('web')[2];
+      expect(engine.skillUnlockBlocker(s, third), contains('first'));
+      expect(() => engine.unlockSkill(s, third.id),
           throwsA(isA<GameRuleException>()));
+    });
+
+    test('tracks open after enough skills are learned', () {
+      final writing = content.track('writing');
+      final firstWriting = content.skillsInTrack('writing').first;
+      var s = rich(engine.newGame(t0));
+      expect(engine.isTrackOpen(s, writing), isFalse);
+      expect(engine.skillUnlockBlocker(s, firstWriting), contains('Writing'));
+
+      // Learn Website Development (needs HTML at level 5).
+      final web = content.skillsInTrack('web');
+      for (var i = 1; i < web[1].unlockOnPreviousLevel; i++) {
+        s = engine.upgradeSkill(s, web[0].id);
+      }
+      s = engine.unlockSkill(s, web[1].id);
+      expect(s.skillLevels.length, writing.unlockAtSkills);
+      expect(engine.isTrackOpen(s, writing), isTrue);
+      expect(engine.nextSkills(s).map((k) => k.key),
+          containsAll(['javascript', firstWriting.key]));
+      s = engine.unlockSkill(s, firstWriting.id);
+      expect(s.isSkillUnlocked(firstWriting.id), isTrue);
     });
   });
 

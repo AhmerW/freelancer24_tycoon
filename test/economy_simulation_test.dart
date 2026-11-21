@@ -28,7 +28,7 @@ void main() {
     const sessionsPerDay = 4;
     const session = Duration(minutes: 15);
     const tick = Duration(seconds: 5);
-    const days = 30;
+    const days = 60;
 
     for (var day = 0; day < days; day++) {
       for (var i = 0; i < sessionsPerDay; i++) {
@@ -53,19 +53,18 @@ void main() {
         'skills ${s.skillLevels.length}/${content.skills.length}');
 
     Duration at(String key) => milestones[key] ?? const Duration(days: 999);
-    Duration skill(int i) => at('skill ${content.skills[i].name}');
+    Duration learned(int n) => at('learned $n skills');
+    final all = content.skills.length;
 
     // The first session should feel rewarding...
-    expect(skill(1), lessThan(const Duration(minutes: 5)));
-    expect(skill(4), lessThan(const Duration(minutes: 15)));
+    expect(learned(2), lessThan(const Duration(minutes: 5)));
+    expect(learned(5), lessThan(const Duration(minutes: 20)));
     // ...the second city should come on day 1 or 2...
     expect(at('city ${content.locations[1].city}'),
         lessThan(const Duration(days: 2)));
-    // ...and the game should not be over within the first few days.
-    expect(
-        skill(content.skills.length - 1), greaterThan(const Duration(days: 5)));
-    expect(
-        skill(content.skills.length - 1), lessThan(const Duration(days: days)));
+    // ...and the game should last weeks, not days.
+    expect(learned(all), greaterThan(const Duration(days: 14)));
+    expect(learned(all), lessThan(const Duration(days: days)));
   });
 }
 
@@ -146,6 +145,9 @@ GameState _playTurn(
     if (best == null) break;
     s = best!;
     if (bestName!.isNotEmpty) mark(bestName!, now);
+    if (bestName!.startsWith('skill ')) {
+      mark('learned ${s.skillLevels.length} skills', now);
+    }
   }
   return s;
 }

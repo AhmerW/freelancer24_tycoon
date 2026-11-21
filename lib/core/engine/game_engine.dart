@@ -72,7 +72,7 @@ class GameEngine {
 
   /// Passive income of one skill at [level], before upgrade bonuses.
   double skillIncome(SkillDef skill, int level) {
-    final decay = pow(Balance.skillIncomeDecay, content.skillIndex(skill.id));
+    final decay = pow(Balance.skillIncomeDecay, skill.rank);
     return skill.price * skill.rate / 100 / decay * level;
   }
 
@@ -104,21 +104,37 @@ class GameEngine {
     return skill.price * pow(growth, level - 1);
   }
 
-  /// The next skill the player can work towards, or null if all are unlocked.
-  SkillDef? nextLockedSkill(GameState s) {
-    for (final skill in content.skills) {
+  bool isTrackOpen(GameState s, TrackDef track) =>
+      s.skillLevels.length >= track.unlockAtSkills;
+
+  /// First skill of [track] the player hasn't learned, or null if done.
+  SkillDef? nextSkillInTrack(GameState s, TrackDef track) {
+    for (final skill in content.skillsInTrack(track.id)) {
       if (!s.isSkillUnlocked(skill.id)) return skill;
     }
     return null;
   }
 
+  /// The next skill of every open track: what the player can work towards.
+  List<SkillDef> nextSkills(GameState s) => [
+        for (final track in content.tracks)
+          if (isTrackOpen(s, track))
+            if (nextSkillInTrack(s, track) case final skill?) skill,
+      ];
+
   /// Why [skill] can't be unlocked right now (ignoring money), or null.
   String? skillUnlockBlocker(GameState s, SkillDef skill) {
-    if (s.isSkillUnlocked(skill.id)) return 'Already unlocked';
-    if (nextLockedSkill(s)?.id != skill.id) {
-      return 'Unlock the previous skill first';
+    if (s.isSkillUnlocked(skill.id)) return 'Already learned';
+    final track = content.track(skill.track);
+    if (!isTrackOpen(s, track)) {
+      final missing = track.unlockAtSkills - s.skillLevels.length;
+      return 'Learn $missing more skill${missing == 1 ? '' : 's'} '
+          'to open ${track.name}';
     }
     final previous = content.previousSkill(skill.id);
+    if (previous != null && !s.isSkillUnlocked(previous.id)) {
+      return "Learn '${previous.name}' first";
+    }
     if (previous != null &&
         s.skillLevel(previous.id) < skill.unlockOnPreviousLevel) {
       return "Requires '${previous.name}' at level ${skill.unlockOnPreviousLevel}";
@@ -581,9 +597,9 @@ class GameEngine {
       for (final skill in content.skills)
         if (s.isSkillUnlocked(skill.id)) skill,
     ];
-    final nextLocked = nextLockedSkill(s);
-    if (staff > 0 && nextLocked != null && _random.nextDouble() < 0.25) {
-      pool.add(nextLocked);
+    final upcoming = nextSkills(s);
+    if (staff > 0 && upcoming.isNotEmpty && _random.nextDouble() < 0.25) {
+      pool.add(_pick(upcoming));
     }
     pool.shuffle(_random);
     final count =
@@ -642,8 +658,10 @@ class GameEngine {
       for (final skill in content.skills)
         if (s.isSkillUnlocked(skill.id)) skill,
     ];
-    final nextLocked = nextLockedSkill(s);
-    if (nextLocked != null && _random.nextDouble() < 0.4) pool.add(nextLocked);
+    final upcoming = nextSkills(s);
+    if (upcoming.isNotEmpty && _random.nextDouble() < 0.4) {
+      pool.add(_pick(upcoming));
+    }
     pool.shuffle(_random);
     final count = 1 + _random.nextInt(min(3, pool.length));
     final skills = <int, int>{

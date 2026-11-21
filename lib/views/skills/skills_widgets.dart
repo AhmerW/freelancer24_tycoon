@@ -153,7 +153,7 @@ class SkillCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          teaser ? '???' : skill.name,
+                          skill.name,
                           style: text.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -180,13 +180,14 @@ class SkillCard extends StatelessWidget {
                     switch (status) {
                       SkillStatus.unlocked => skill.description,
                       SkillStatus.next => blocker ?? skill.description,
-                      SkillStatus.locked =>
-                        'Keep learning to reveal this skill',
+                      SkillStatus.locked => skill.description,
                     },
                     style: text.bodySmall?.copyWith(
                       color: status == SkillStatus.next && blocker != null
                           ? scheme.error
-                          : null,
+                          : teaser
+                              ? scheme.outline
+                              : null,
                     ),
                   ),
                   if (!teaser) ...[

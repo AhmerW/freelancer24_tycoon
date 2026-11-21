@@ -7,6 +7,19 @@ import 'dart:convert';
 
 class SkillDef {
   final int id;
+
+  /// Stable text id, e.g. "html".
+  final String key;
+
+  /// Id of the [TrackDef] this skill belongs to.
+  final String track;
+
+  /// Position inside its track, starting at 1.
+  final int step;
+
+  /// Position on the global economy curve. Later = pricier, and less income
+  /// per dollar spent (see `Balance.skillIncomeDecay`).
+  final double rank;
   final int tier;
   final String name;
   final String description;
@@ -27,6 +40,10 @@ class SkillDef {
 
   const SkillDef({
     required this.id,
+    required this.key,
+    required this.track,
+    required this.step,
+    required this.rank,
     required this.tier,
     required this.name,
     required this.description,
@@ -39,6 +56,10 @@ class SkillDef {
 
   factory SkillDef.fromJson(Map<String, dynamic> json) => SkillDef(
         id: json['id'] as int,
+        key: json['key'] as String,
+        track: json['track'] as String,
+        step: json['step'] as int,
+        rank: (json['rank'] as num).toDouble(),
         tier: json['tier'] as int,
         name: json['name'] as String,
         description: json['description'] as String,
@@ -47,6 +68,42 @@ class SkillDef {
         levelPriceRate: (json['levelPriceRate'] as num).toDouble(),
         icon: json['icon'] as String,
         unlockOnPreviousLevel: (json['unlockOnPreviousLevel'] as int?) ?? 0,
+      );
+}
+
+/// A career track: a ladder of related skills (e.g. Web Development).
+class TrackDef {
+  final String id;
+  final String name;
+  final String description;
+
+  /// Material icon name (see `skillMaterialIcons` in the UI).
+  final String icon;
+
+  /// ARGB color.
+  final int color;
+
+  /// The track opens once the player has learned this many skills in total.
+  final int unlockAtSkills;
+
+  const TrackDef({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.unlockAtSkills,
+  });
+
+  factory TrackDef.fromJson(Map<String, dynamic> json) => TrackDef(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        description: json['description'] as String,
+        icon: json['icon'] as String,
+        color: 0xFF000000 |
+            int.parse((json['color'] as String).replaceFirst('#', ''),
+                radix: 16),
+        unlockAtSkills: json['unlockAtSkills'] as int,
       );
 }
 
@@ -193,7 +250,10 @@ class LocationDef {
 }
 
 class GameContent {
-  /// Ordered by id. The order is the unlock order.
+  /// In the order they open.
+  final List<TrackDef> tracks;
+
+  /// Ordered by id.
   final List<SkillDef> skills;
   final List<UpgradeLineDef> upgradeLines;
 
@@ -201,27 +261,41 @@ class GameContent {
   final List<LocationDef> locations;
 
   final Map<int, SkillDef> _skillsById;
-  final Map<int, int> _skillIndex;
+  final Map<String, TrackDef> _tracksById;
+  final Map<String, List<SkillDef>> _skillsByTrack;
   final Map<int, UpgradeLineDef> _linesById;
   final Map<int, LocationDef> _locationsById;
 
   GameContent({
+    required List<TrackDef> tracks,
     required List<SkillDef> skills,
     required List<UpgradeLineDef> upgradeLines,
     required List<LocationDef> locations,
-  })  : skills = List.unmodifiable([...skills]..sort((a, b) => a.id - b.id)),
+  })  : tracks = List.unmodifiable(
+            [...tracks]..sort((a, b) => a.unlockAtSkills - b.unlockAtSkills)),
+        skills = List.unmodifiable([...skills]..sort((a, b) => a.id - b.id)),
         upgradeLines = List.unmodifiable(upgradeLines),
         locations = List.unmodifiable(
             [...locations]..sort((a, b) => a.price.compareTo(b.price))),
         _skillsById = {for (final s in skills) s.id: s},
-        _skillIndex = {},
+        _tracksById = {for (final t in tracks) t.id: t},
+        _skillsByTrack = {
+          for (final t in tracks)
+            t.id: List.unmodifiable(
+                skills.where((s) => s.track == t.id).toList()
+                  ..sort((a, b) => a.step - b.step)),
+        },
         _linesById = {for (final l in upgradeLines) l.id: l},
         _locationsById = {for (final l in locations) l.id: l} {
-    for (var i = 0; i < this.skills.length; i++) {
-      _skillIndex[this.skills[i].id] = i;
+    if (this.tracks.isEmpty || this.skills.isEmpty || this.locations.isEmpty) {
+      throw const FormatException(
+          'Game content needs tracks, skills and locations');
     }
-    if (this.skills.isEmpty || this.locations.isEmpty) {
-      throw const FormatException('Game content needs skills and locations');
+    for (final skill in this.skills) {
+      if (!_tracksById.containsKey(skill.track)) {
+        throw FormatException(
+            'Skill ${skill.key} has unknown track ${skill.track}');
+      }
     }
   }
 
@@ -230,7 +304,11 @@ class GameContent {
     required String upgradesJson,
     required String locationsJson,
   }) {
-    final skills = (jsonDecode(skillsJson)['skills'] as List)
+    final skillsData = jsonDecode(skillsJson) as Map<String, dynamic>;
+    final tracks = (skillsData['tracks'] as List)
+        .map((e) => TrackDef.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final skills = (skillsData['skills'] as List)
         .map((e) => SkillDef.fromJson(e as Map<String, dynamic>))
         .toList();
     final lines = (jsonDecode(upgradesJson)['upgrades'] as List)
@@ -240,6 +318,7 @@ class GameContent {
         .map((e) => LocationDef.fromJson(e as Map<String, dynamic>))
         .toList();
     return GameContent(
+      tracks: tracks,
       skills: skills,
       upgradeLines: lines,
       locations: locations,
@@ -249,18 +328,23 @@ class GameContent {
   SkillDef skill(int id) => _skillsById[id]!;
   SkillDef? skillOrNull(int id) => _skillsById[id];
 
-  /// Position of the skill in the unlock order (0-based).
-  int skillIndex(int id) => _skillIndex[id]!;
+  TrackDef track(String id) => _tracksById[id]!;
 
+  /// Skills of a track, ordered by step.
+  List<SkillDef> skillsInTrack(String trackId) => _skillsByTrack[trackId]!;
+
+  /// The skill before this one in its track, or null for a first step.
   SkillDef? previousSkill(int id) {
-    final i = skillIndex(id);
-    return i == 0 ? null : skills[i - 1];
+    final skill = this.skill(id);
+    final inTrack = skillsInTrack(skill.track);
+    final i = inTrack.indexOf(skill);
+    return i <= 0 ? null : inTrack[i - 1];
   }
 
   UpgradeLineDef upgradeLine(int id) => _linesById[id]!;
   LocationDef location(int id) => _locationsById[id]!;
   LocationDef? locationOrNull(int id) => _locationsById[id];
 
-  SkillDef get startingSkill => skills.first;
+  SkillDef get startingSkill => skillsInTrack(tracks.first.id).first;
   LocationDef get startingLocation => locations.first;
 }
