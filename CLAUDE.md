@@ -74,6 +74,15 @@ Run `dart format lib test` before committing.
 - `marketing.json`: campaigns run per city for `durationSeconds`; cost is
   `costIncomeSeconds` of current income (at least `minCost`); `effects` stack
   across different campaigns. Campaign ids are saved in player saves.
+- `chests.json`: gift chests a collected job sometimes leaves
+  (`Balance.chestDropChance`, always for VIP/golden jobs, at most
+  `Balance.chestSlots`). One unlocks at a time over `unlockMinutes`; loot is
+  `cashIncomeSeconds` of income (at least `minCash`), energy and free skill
+  levels. Chest type ids are saved in player saves.
+- Rebrand (prestige): `stats.runEarnings` buys reputation stars
+  (`sqrt(runEarnings / Balance.rebrandEarningsPerStar)`); each star adds
+  `Balance.reputationBonusPerStar` income. Rebranding resets the run but keeps
+  stars, achievements, chests and the daily streak.
 - `achievements.json`: `condition` `{type, value}` (types in
   `AchievementConditionType`; `trackCompleted` takes a track id as value);
   reward is `rewardIncomeSeconds` of income at claim time, at least

@@ -121,9 +121,15 @@ class MoneyPill extends StatelessWidget {
               child: RollingNumber(
                 value: balance,
                 format: dollar,
-                builder: (text) => StrokeText(text, size: 18, maxLines: 1),
+                // Shrinks rather than truncates long amounts like $4.01M.
+                builder: (text) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: StrokeText(text, size: 18, maxLines: 1),
+                ),
               ),
             ),
+            const SizedBox(width: 4),
             StrokeText('+${dollar(income)}/s',
                 size: 11, color: const Color(0xFF9BF08A)),
           ],

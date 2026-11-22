@@ -1,0 +1,52 @@
+{
+    "chests": [
+        {
+            "id": "wooden",
+            "name": "Wooden Chest",
+            "color": "#A0662F",
+            "unlockMinutes": 15,
+            "cashIncomeSeconds": 600,
+            "minCash": 40,
+            "energy": 0,
+            "skillLevels": 0,
+            "weight": 70,
+            "vipEligible": false
+        },
+        {
+            "id": "silver",
+            "name": "Silver Chest",
+            "color": "#8D9BB0",
+            "unlockMinutes": 60,
+            "cashIncomeSeconds": 2400,
+            "minCash": 150,
+            "energy": 25,
+            "skillLevels": 1,
+            "weight": 22,
+            "vipEligible": true
+        },
+        {
+            "id": "golden",
+            "name": "Golden Chest",
+            "color": "#E8A800",
+            "unlockMinutes": 180,
+            "cashIncomeSeconds": 7200,
+            "minCash": 600,
+            "energy": 50,
+            "skillLevels": 3,
+            "weight": 7,
+            "vipEligible": true
+        },
+        {
+            "id": "magical",
+            "name": "Magical Chest",
+            "color": "#9B4DEB",
+            "unlockMinutes": 480,
+            "cashIncomeSeconds": 18000,
+            "minCash": 2500,
+            "energy": 100,
+            "skillLevels": 6,
+            "weight": 1,
+            "vipEligible": true
+        }
+    ]
+}

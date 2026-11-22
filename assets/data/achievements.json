@@ -299,6 +299,54 @@
             },
             "rewardIncomeSeconds": 3600,
             "rewardMin": 1000000
+        },
+        {
+            "id": "chests_1",
+            "title": "Treasure Hunter",
+            "description": "Open your first gift chest.",
+            "icon": "card_giftcard",
+            "condition": {
+                "type": "chestsOpened",
+                "value": 1
+            },
+            "rewardIncomeSeconds": 300,
+            "rewardMin": 50
+        },
+        {
+            "id": "chests_25",
+            "title": "Loot Goblin",
+            "description": "Open 25 gift chests.",
+            "icon": "card_giftcard",
+            "condition": {
+                "type": "chestsOpened",
+                "value": 25
+            },
+            "rewardIncomeSeconds": 3600,
+            "rewardMin": 5000
+        },
+        {
+            "id": "rebrand_1",
+            "title": "Fresh Start",
+            "description": "Rebrand your business for the first time.",
+            "icon": "auto_awesome",
+            "condition": {
+                "type": "rebrands",
+                "value": 1
+            },
+            "rewardIncomeSeconds": 1800,
+            "rewardMin": 1000
+        },
+        {
+            "id": "rebrand_5",
+            "title": "Reinvention Expert",
+            "description": "Rebrand five times.",
+            "icon": "workspace_premium",
+            "condition": {
+                "type": "rebrands",
+                "value": 5
+            },
+            "rewardIncomeSeconds": 7200,
+            "rewardMin": 100000
         }
     ]
 }

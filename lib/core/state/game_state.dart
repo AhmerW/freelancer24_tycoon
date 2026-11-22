@@ -384,6 +384,39 @@ class ActiveCampaign {
   int get hashCode => Object.hash(locationId, campaignId, endsAt);
 }
 
+/// A gift chest in one of the player's chest slots.
+class Chest {
+  final int id;
+
+  /// Id of the [ChestDef] (rarity).
+  final String type;
+
+  /// When unlocking started, or null if it is still locked.
+  final DateTime? unlockStartedAt;
+
+  const Chest({required this.id, required this.type, this.unlockStartedAt});
+
+  Chest copyWith({DateTime? unlockStartedAt}) => Chest(
+        id: id,
+        type: type,
+        unlockStartedAt: unlockStartedAt ?? this.unlockStartedAt,
+      );
+
+  factory Chest.fromJson(Map<String, dynamic> json) => Chest(
+        id: json['id'] as int,
+        type: json['type'] as String,
+        unlockStartedAt: json['unlockStartedAt'] == null
+            ? null
+            : DateTime.parse(json['unlockStartedAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type,
+        'unlockStartedAt': unlockStartedAt?.toIso8601String(),
+      };
+}
+
 class GameStats {
   final int contractsCompleted;
   final double lifetimeEarnings;
@@ -395,12 +428,24 @@ class GameStats {
   /// Marketing campaigns started.
   final int campaignsRun;
 
+  /// Money earned since the last rebrand (drives reputation stars).
+  final double runEarnings;
+
+  /// Times the player rebranded.
+  final int rebrands;
+
+  /// Gift chests opened.
+  final int chestsOpened;
+
   const GameStats({
     this.contractsCompleted = 0,
     this.lifetimeEarnings = 0,
     this.employeesHired = 0,
     this.goldenContractsCompleted = 0,
     this.campaignsRun = 0,
+    this.runEarnings = 0,
+    this.rebrands = 0,
+    this.chestsOpened = 0,
   });
 
   GameStats copyWith({
@@ -409,6 +454,9 @@ class GameStats {
     int? employeesHired,
     int? goldenContractsCompleted,
     int? campaignsRun,
+    double? runEarnings,
+    int? rebrands,
+    int? chestsOpened,
   }) =>
       GameStats(
         contractsCompleted: contractsCompleted ?? this.contractsCompleted,
@@ -417,6 +465,9 @@ class GameStats {
         goldenContractsCompleted:
             goldenContractsCompleted ?? this.goldenContractsCompleted,
         campaignsRun: campaignsRun ?? this.campaignsRun,
+        runEarnings: runEarnings ?? this.runEarnings,
+        rebrands: rebrands ?? this.rebrands,
+        chestsOpened: chestsOpened ?? this.chestsOpened,
       );
 
   factory GameStats.fromJson(Map<String, dynamic> json) => GameStats(
@@ -425,6 +476,12 @@ class GameStats {
         employeesHired: json['employeesHired'] as int? ?? 0,
         goldenContractsCompleted: json['goldenContractsCompleted'] as int? ?? 0,
         campaignsRun: json['campaignsRun'] as int? ?? 0,
+        // Saves from before rebranding: everything so far is this run.
+        runEarnings: (json['runEarnings'] as num?)?.toDouble() ??
+            (json['lifetimeEarnings'] as num?)?.toDouble() ??
+            0,
+        rebrands: json['rebrands'] as int? ?? 0,
+        chestsOpened: json['chestsOpened'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -433,6 +490,9 @@ class GameStats {
         'employeesHired': employeesHired,
         'goldenContractsCompleted': goldenContractsCompleted,
         'campaignsRun': campaignsRun,
+        'runEarnings': runEarnings,
+        'rebrands': rebrands,
+        'chestsOpened': chestsOpened,
       };
 }
 
@@ -480,6 +540,12 @@ class GameState {
   /// When the last daily reward was claimed.
   final DateTime? lastDailyClaim;
 
+  /// Reputation stars from rebranding; each boosts income permanently.
+  final int reputation;
+
+  /// Gift chests in the chest slots.
+  final List<Chest> chests;
+
   const GameState({
     required this.balance,
     required this.energy,
@@ -497,6 +563,8 @@ class GameState {
     this.achievementsClaimed = const {},
     this.dailyStreak = 0,
     this.lastDailyClaim,
+    this.reputation = 0,
+    this.chests = const [],
   });
 
   // ---- Queries -------------------------------------------------------------
@@ -568,6 +636,8 @@ class GameState {
     Set<String>? achievementsClaimed,
     int? dailyStreak,
     DateTime? lastDailyClaim,
+    int? reputation,
+    List<Chest>? chests,
   }) =>
       GameState(
         balance: balance ?? this.balance,
@@ -586,6 +656,8 @@ class GameState {
         achievementsClaimed: achievementsClaimed ?? this.achievementsClaimed,
         dailyStreak: dailyStreak ?? this.dailyStreak,
         lastDailyClaim: lastDailyClaim ?? this.lastDailyClaim,
+        reputation: reputation ?? this.reputation,
+        chests: chests ?? this.chests,
       );
 
   // ---- Serialization -------------------------------------------------------
@@ -612,6 +684,8 @@ class GameState {
         'achievementsClaimed': achievementsClaimed.toList()..sort(),
         'dailyStreak': dailyStreak,
         'lastDailyClaim': lastDailyClaim?.toIso8601String(),
+        'reputation': reputation,
+        'chests': chests.map((c) => c.toJson()).toList(),
       };
 
   /// Throws [FormatException] if the save is unreadable or from a newer
@@ -657,6 +731,9 @@ class GameState {
         lastDailyClaim: json['lastDailyClaim'] == null
             ? null
             : DateTime.parse(json['lastDailyClaim'] as String),
+        reputation: json['reputation'] as int? ?? 0,
+        chests: List.unmodifiable((json['chests'] as List? ?? const [])
+            .map((e) => Chest.fromJson(e as Map<String, dynamic>))),
       );
     } on TypeError catch (e) {
       throw FormatException('Corrupt save: $e');

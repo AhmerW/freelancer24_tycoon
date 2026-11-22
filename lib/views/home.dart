@@ -40,8 +40,9 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
-    final readyToCollect =
-        context.select((GameCubit c) => c.state.contractsReadyToCollect);
+    final readyToCollect = context.select((GameCubit c) =>
+        c.state.contractsReadyToCollect +
+        c.state.chests.where((x) => c.engine.isChestReady(x, c.now())).length);
     final goalsToClaim =
         context.select((GameCubit c) => c.state.achievementsToClaim);
 

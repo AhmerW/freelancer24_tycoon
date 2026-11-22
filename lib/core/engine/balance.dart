@@ -38,6 +38,21 @@ abstract final class Balance {
   /// Days (1-7) that also refill energy.
   static const Set<int> dailyRewardEnergyDays = {3, 7};
 
+  // ---- Rebrand (prestige) --------------------------------------------------
+
+  /// Stars for a run: floor(sqrt(run earnings / this)).
+  static const double rebrandEarningsPerStar = 1e6;
+
+  /// Income bonus per reputation star (0.02 = +2%).
+  static const double reputationBonusPerStar = 0.02;
+
+  // ---- Gift chests ---------------------------------------------------------
+
+  static const int chestSlots = 4;
+
+  /// Chance that a regular job leaves a chest (VIP jobs always do).
+  static const double chestDropChance = 0.2;
+
   // ---- Upgrades ------------------------------------------------------------
 
   /// Level-up cost of an upgrade item grows by `1 + levelPriceRate * this`.

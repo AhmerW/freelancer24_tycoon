@@ -356,6 +356,70 @@ enum AchievementConditionType {
 
   /// Highest level of any single skill.
   skillLevel,
+
+  /// Times the player rebranded (prestige).
+  rebrands,
+
+  /// Gift chests opened.
+  chestsOpened,
+}
+
+/// A gift chest rarity. Clients sometimes leave one after a job.
+class ChestDef {
+  final String id;
+  final String name;
+
+  /// ARGB color of the chest.
+  final int color;
+
+  /// Time to unlock once started.
+  final Duration unlockTime;
+
+  /// Cash inside: this many seconds of current income (x0.8-1.2)...
+  final double cashIncomeSeconds;
+
+  /// ...but at least this much.
+  final double minCash;
+
+  /// Energy inside.
+  final double energy;
+
+  /// Free skill levels inside, spread over learned skills.
+  final int skillLevels;
+
+  /// Relative chance of this rarity when a chest drops.
+  final double weight;
+
+  /// VIP (golden) clients only leave chests of at least this rarity.
+  final bool vipEligible;
+
+  const ChestDef({
+    required this.id,
+    required this.name,
+    required this.color,
+    required this.unlockTime,
+    required this.cashIncomeSeconds,
+    required this.minCash,
+    required this.energy,
+    required this.skillLevels,
+    required this.weight,
+    required this.vipEligible,
+  });
+
+  factory ChestDef.fromJson(Map<String, dynamic> json) => ChestDef(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        color: 0xFF000000 |
+            int.parse((json['color'] as String).replaceFirst('#', ''),
+                radix: 16),
+        unlockTime: Duration(minutes: json['unlockMinutes'] as int),
+        cashIncomeSeconds: (json['cashIncomeSeconds'] as num).toDouble(),
+        minCash: (json['minCash'] as num).toDouble(),
+        energy: (json['energy'] as num).toDouble(),
+        skillLevels: json['skillLevels'] as int,
+        weight: (json['weight'] as num).toDouble(),
+        vipEligible: json['vipEligible'] as bool? ?? false,
+      );
 }
 
 class AchievementCondition {
@@ -441,6 +505,10 @@ class GameContent {
   /// Achievements, in display order.
   final List<AchievementDef> achievements;
 
+  /// Gift chest rarities, from common to rare.
+  final List<ChestDef> chests;
+  final Map<String, ChestDef> _chestsById;
+
   final Map<int, SkillDef> _skillsById;
   final Map<String, TrackDef> _tracksById;
   final Map<String, List<SkillDef>> _skillsByTrack;
@@ -456,7 +524,10 @@ class GameContent {
     required List<LocationDef> locations,
     List<CampaignDef> campaigns = const [],
     List<AchievementDef> achievements = const [],
-  })  : tracks = List.unmodifiable(
+    List<ChestDef> chests = const [],
+  })  : chests = List.unmodifiable(chests),
+        _chestsById = {for (final c in chests) c.id: c},
+        tracks = List.unmodifiable(
             [...tracks]..sort((a, b) => a.unlockAtSkills - b.unlockAtSkills)),
         skills = List.unmodifiable([...skills]..sort((a, b) => a.id - b.id)),
         upgradeLines = List.unmodifiable(upgradeLines),
@@ -504,6 +575,7 @@ class GameContent {
     required String locationsJson,
     String? marketingJson,
     String? achievementsJson,
+    String? chestsJson,
   }) {
     final skillsData = jsonDecode(skillsJson) as Map<String, dynamic>;
     final tracks = (skillsData['tracks'] as List)
@@ -528,6 +600,11 @@ class GameContent {
         : (jsonDecode(achievementsJson)['achievements'] as List)
             .map((e) => AchievementDef.fromJson(e as Map<String, dynamic>))
             .toList();
+    final chests = chestsJson == null
+        ? const <ChestDef>[]
+        : (jsonDecode(chestsJson)['chests'] as List)
+            .map((e) => ChestDef.fromJson(e as Map<String, dynamic>))
+            .toList();
     return GameContent(
       tracks: tracks,
       skills: skills,
@@ -535,6 +612,7 @@ class GameContent {
       locations: locations,
       campaigns: campaigns,
       achievements: achievements,
+      chests: chests,
     );
   }
 
@@ -558,6 +636,7 @@ class GameContent {
   LocationDef location(int id) => _locationsById[id]!;
   LocationDef? locationOrNull(int id) => _locationsById[id];
   CampaignDef? campaignOrNull(String id) => _campaignsById[id];
+  ChestDef? chestOrNull(String id) => _chestsById[id];
   AchievementDef? achievementOrNull(String id) => _achievementsById[id];
 
   SkillDef get startingSkill => skillsInTrack(tracks.first.id).first;

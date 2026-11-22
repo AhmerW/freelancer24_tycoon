@@ -12,6 +12,7 @@ GameContent loadTestContent() => GameContent.fromJsonStrings(
       marketingJson: File('assets/data/marketing.json').readAsStringSync(),
       achievementsJson:
           File('assets/data/achievements.json').readAsStringSync(),
+      chestsJson: File('assets/data/chests.json').readAsStringSync(),
     );
 
 GameEngine testEngine({int seed = 42}) =>

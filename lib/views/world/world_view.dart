@@ -10,7 +10,9 @@ import 'package:freelancer24_tycoon/views/game_ui/game_button.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
+import 'package:freelancer24_tycoon/views/world/chests_view.dart';
 import 'package:freelancer24_tycoon/views/world/city_page.dart';
+import 'package:freelancer24_tycoon/views/world/rebrand_view.dart';
 import 'package:freelancer24_tycoon/views/world/stats_view.dart';
 
 void openCity(BuildContext context, LocationDef location) {
@@ -58,8 +60,10 @@ class WorldView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 32),
       children: [
+        const ChestSlots(),
         const _WorldMap(),
         const StatsView(),
+        const RebrandCard(),
         const SectionTitle('CITIES'),
         for (final loc in content.locations) CityCard(loc),
       ],

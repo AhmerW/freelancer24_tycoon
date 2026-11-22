@@ -159,10 +159,51 @@ class GameCubit extends Cubit<GameState> {
 
   bool collectContract(int contractId) {
     final pay = state.contract(contractId)?.netPay ?? 0;
-    return _run(
+    final chestsBefore = state.chests.map((c) => c.id).toSet();
+    final ok = _run(
       (s) => engine.collectContract(s, contractId),
       success: 'Collected ${dollar(pay)}',
     );
+    if (ok) {
+      for (final chest in state.chests) {
+        if (chestsBefore.contains(chest.id)) continue;
+        _notify(GameNotice(
+          kind: NoticeKind.success,
+          title: 'The client sent a gift!',
+          message: 'You got a ${engine.chestDef(chest).name}. '
+              'Open it in the World tab.',
+          lifetime: const Duration(seconds: 5),
+          chime: true,
+        ));
+      }
+    }
+    return ok;
+  }
+
+  // ---- Gift chests -----------------------------------------------------------
+
+  bool startChestUnlock(int chestId) =>
+      _run((s) => engine.startChestUnlock(s, chestId, now()));
+
+  /// Opens a ready chest; returns what was inside, or null.
+  ChestOpening? openChest(int chestId) {
+    ChestOpening? opening;
+    final ok = _run((s) {
+      opening = engine.openChest(s, chestId, now());
+      return opening!.state;
+    });
+    return ok ? opening : null;
+  }
+
+  // ---- Rebrand ---------------------------------------------------------------
+
+  int get pendingStars => engine.pendingStars(state);
+
+  /// Rebrands (prestige); returns the stars gained, or null.
+  int? rebrand() {
+    final gained = pendingStars;
+    final ok = _run((s) => engine.rebrand(s, now()));
+    return ok ? gained : null;
   }
 
   bool startCampaign(int locationId, String campaignId) => _run(
@@ -199,6 +240,8 @@ class GameCubit extends Cubit<GameState> {
       _run((s) => engine.debugAddMoney(s, amount));
 
   void debugRefillEnergy() => _run(engine.debugRefillEnergy);
+
+  void debugAddChest() => _run((s) => engine.debugAddChest(s, now()));
 
   void debugNotice() => _notify(GameNotice(
         kind: NoticeKind.info,

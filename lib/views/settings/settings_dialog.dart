@@ -104,6 +104,12 @@ class SettingsDialog extends StatelessWidget {
                     onPressed: game.debugRefillEnergy,
                   ),
                   GameButton.small(
+                    tone: GameTone.red,
+                    icon: Icons.inventory_2,
+                    label: 'CHEST',
+                    onPressed: game.debugAddChest,
+                  ),
+                  GameButton.small(
                     tone: GameTone.blue,
                     label: 'TEST ALERT',
                     onPressed: game.debugNotice,

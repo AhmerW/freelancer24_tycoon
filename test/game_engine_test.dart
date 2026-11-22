@@ -925,4 +925,145 @@ void main() {
       expect(day8.streak, 8);
     });
   });
+
+  group('rebrand', () {
+    test('stars grow with the square root of run earnings', () {
+      expect(engine.starsFor(9e5), 0);
+      expect(engine.starsFor(1e6), 1);
+      expect(engine.starsFor(1e8), 10);
+      expect(engine.starsFor(1e10), 100);
+    });
+
+    test('you need at least one star to rebrand', () {
+      final s = engine.newGame(t0);
+      expect(engine.pendingStars(s), 0);
+      expect(() => engine.rebrand(s, t0), throwsA(isA<GameRuleException>()));
+    });
+
+    test('passive income counts towards the run', () {
+      final s = engine.newGame(t0);
+      final later =
+          engine.advance(s, t0.add(const Duration(seconds: 10))).state;
+      expect(later.stats.runEarnings, greaterThan(0));
+      expect(later.stats.runEarnings, later.stats.lifetimeEarnings);
+    });
+
+    test('rebranding resets the run but keeps stars, goals, chests, streak',
+        () {
+      var s = rich(engine.newGame(t0));
+      s = engine.unlockLocation(s, content.locations[1].id, t0);
+      s = engine.upgradeSkill(s, content.startingSkill.id);
+      s = engine.claimDailyReward(s, t0);
+      s = s.copyWith(
+        stats: s.stats.copyWith(runEarnings: 4e8, lifetimeEarnings: 5e8),
+        achievementsUnlocked: {'first_contract'},
+        achievementsClaimed: {'first_contract'},
+        chests: const [Chest(id: 999, type: 'wooden')],
+      );
+      final later = t0.add(const Duration(days: 3));
+      final r = engine.rebrand(s, later);
+
+      expect(r.reputation, 20);
+      expect(r.stats.rebrands, 1);
+      expect(r.stats.runEarnings, 0);
+      expect(r.stats.lifetimeEarnings, 5e8);
+      expect(r.balance, 0);
+      expect(r.skillLevels, {content.startingSkill.id: 1});
+      expect(r.locations.keys, [content.startingLocation.id]);
+      expect(r.hiredCount, 0);
+      expect(r.chests.single.id, 999);
+      expect(r.achievementsClaimed, {'first_contract'});
+      expect(r.dailyStreak, 1);
+      expect(r.startedAt, s.startedAt);
+      expect(r.offersAt(content.startingLocation.id), isNotEmpty);
+    });
+
+    test('each star adds 2% income', () {
+      final s = engine.newGame(t0);
+      final starred = s.copyWith(reputation: 10);
+      expect(engine.incomePerSecond(starred),
+          closeTo(engine.incomePerSecond(s) * 1.2, 1e-12));
+    });
+  });
+
+  group('gift chests', () {
+    Contract doneJob({bool golden = false}) => Contract(
+          id: 7777,
+          locationId: content.startingLocation.id,
+          client: 'Test',
+          message: '',
+          pay: 100,
+          duration: const Duration(minutes: 1),
+          energy: 5,
+          requiredPeople: 1,
+          requirements: const [],
+          golden: golden,
+          status: ContractStatus.completed,
+          acceptedAt: t0,
+          assignees: const [kPlayerId],
+          netPay: 100,
+        );
+
+    GameState withJob(GameState s, Contract c) =>
+        s.copyWith(contracts: [...s.contracts, c]);
+
+    test('VIP clients always leave a good chest', () {
+      for (var seed = 0; seed < 20; seed++) {
+        final e = testEngine(seed: seed);
+        final s = e.collectContract(
+            withJob(e.newGame(t0), doneJob(golden: true)), 7777);
+        expect(s.chests, hasLength(1));
+        expect(content.chestOrNull(s.chests.single.type)!.vipEligible, isTrue);
+      }
+    });
+
+    test('regular jobs drop chests only sometimes', () {
+      var drops = 0;
+      for (var seed = 0; seed < 200; seed++) {
+        final e = testEngine(seed: seed);
+        final s = e.collectContract(withJob(e.newGame(t0), doneJob()), 7777);
+        drops += s.chests.length;
+      }
+      expect(drops, inInclusiveRange(20, 70)); // ~20%
+    });
+
+    test('no chest when all slots are full', () {
+      final full = List.generate(
+          Balance.chestSlots, (i) => Chest(id: 100 + i, type: 'wooden'));
+      final s = engine.collectContract(
+          withJob(
+              engine.newGame(t0).copyWith(chests: full), doneJob(golden: true)),
+          7777);
+      expect(s.chests, hasLength(Balance.chestSlots));
+    });
+
+    test('one chest unlocks at a time, then opens with rewards', () {
+      var s = engine.newGame(t0).copyWith(chests: const [
+        Chest(id: 1, type: 'golden'),
+        Chest(id: 2, type: 'wooden'),
+      ]);
+      s = engine.startChestUnlock(s, 1, t0);
+      expect(() => engine.startChestUnlock(s, 2, t0),
+          throwsA(isA<GameRuleException>()));
+      expect(
+          () => engine.openChest(s, 1, t0), throwsA(isA<GameRuleException>()));
+
+      final golden = content.chestOrNull('golden')!;
+      final ready = t0.add(golden.unlockTime);
+      expect(engine.isChestReady(s.chests.first, ready), isTrue);
+      // A ready chest no longer blocks the next one.
+      final both = engine.startChestUnlock(s, 2, ready);
+      expect(both.chests.last.unlockStartedAt, ready);
+
+      final levelsBefore = s.skillLevels.values.fold(0, (a, b) => a + b);
+      final opened = engine.openChest(s.copyWith(energy: 0), 1, ready);
+      expect(opened.cash, greaterThanOrEqualTo(golden.minCash));
+      expect(opened.state.balance, s.balance + opened.cash);
+      expect(opened.state.energy, golden.energy);
+      expect(opened.state.skillLevels.values.fold(0, (a, b) => a + b),
+          levelsBefore + golden.skillLevels);
+      expect(opened.state.chests.map((c) => c.id), [2]);
+      expect(opened.state.stats.chestsOpened, 1);
+    });
+  });
 }

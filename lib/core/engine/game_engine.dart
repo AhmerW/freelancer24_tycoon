@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:freelancer24_tycoon/core/content/game_content.dart';
 import 'package:freelancer24_tycoon/core/engine/balance.dart';
 import 'package:freelancer24_tycoon/core/state/game_state.dart';
+import 'package:freelancer24_tycoon/utils/format.dart';
 
 /// Thrown when the player tries something the rules don't allow.
 /// [message] is shown to the player.
@@ -75,6 +76,25 @@ class CampaignEffects {
   });
 
   static const none = CampaignEffects();
+}
+
+/// What came out of an opened chest.
+class ChestOpening {
+  final GameState state;
+  final ChestDef chest;
+  final double cash;
+  final double energy;
+
+  /// skillId -> free levels gained.
+  final Map<int, int> skillLevels;
+
+  const ChestOpening(
+    this.state, {
+    required this.chest,
+    required this.cash,
+    required this.energy,
+    required this.skillLevels,
+  });
 }
 
 /// Where the player is in the daily reward cycle.
@@ -169,7 +189,12 @@ class GameEngine {
 
   double incomePerSecond(GameState s) =>
       baseIncomePerSecond(s) *
-      (1 + upgradeBonus(s, UpgradeEffect.income) / 100);
+      (1 + upgradeBonus(s, UpgradeEffect.income) / 100) *
+      reputationMultiplier(s);
+
+  /// Income multiplier from reputation stars (1 = none).
+  double reputationMultiplier(GameState s) =>
+      1 + s.reputation * Balance.reputationBonusPerStar;
 
   double energyRegenPerSecond(GameState s) =>
       Balance.energyRegenPerSecond *
@@ -447,6 +472,10 @@ class GameEngine {
         AchievementProgress(s.locations.length.toDouble(), c.value),
       AchievementConditionType.campaignsRun =>
         AchievementProgress(stats.campaignsRun.toDouble(), c.value),
+      AchievementConditionType.rebrands =>
+        AchievementProgress(stats.rebrands.toDouble(), c.value),
+      AchievementConditionType.chestsOpened =>
+        AchievementProgress(stats.chestsOpened.toDouble(), c.value),
       AchievementConditionType.skillLevel => AchievementProgress(
           s.skillLevels.values.fold(0, max).toDouble(), c.value),
       AchievementConditionType.trackCompleted => () {
@@ -540,8 +569,10 @@ class GameEngine {
       campaigns: s.campaigns.every((c) => c.isRunning(now))
           ? s.campaigns
           : List.unmodifiable(s.campaigns.where((c) => c.isRunning(now))),
-      stats:
-          s.stats.copyWith(lifetimeEarnings: s.stats.lifetimeEarnings + earned),
+      stats: s.stats.copyWith(
+        lifetimeEarnings: s.stats.lifetimeEarnings + earned,
+        runEarnings: s.stats.runEarnings + earned,
+      ),
     );
     next = _refill(next, now);
     final check = checkAchievements(next);
@@ -794,7 +825,7 @@ class GameEngine {
     if (!contract.isCompleted) {
       throw const GameRuleException('This contract is not finished yet');
     }
-    return s.copyWith(
+    final collected = s.copyWith(
       balance: s.balance + contract.netPay,
       contracts:
           List.unmodifiable(s.contracts.where((c) => c.id != contractId)),
@@ -803,8 +834,161 @@ class GameEngine {
         goldenContractsCompleted:
             s.stats.goldenContractsCompleted + (contract.golden ? 1 : 0),
         lifetimeEarnings: s.stats.lifetimeEarnings + contract.netPay,
+        runEarnings: s.stats.runEarnings + contract.netPay,
       ),
     );
+    return _maybeDropChest(collected, vip: contract.golden);
+  }
+
+  // ---- Gift chests -----------------------------------------------------------
+
+  /// Sometimes (always for VIP clients) a finished job leaves a chest, if a
+  /// slot is free.
+  GameState _maybeDropChest(GameState s, {required bool vip}) {
+    if (content.chests.isEmpty || s.chests.length >= Balance.chestSlots) {
+      return s;
+    }
+    if (!vip && _random.nextDouble() >= Balance.chestDropChance) return s;
+    final pool = vip
+        ? content.chests.where((c) => c.vipEligible).toList()
+        : content.chests;
+    final total = pool.fold(0.0, (sum, c) => sum + c.weight);
+    var roll = _random.nextDouble() * total;
+    var type = pool.last;
+    for (final c in pool) {
+      roll -= c.weight;
+      if (roll < 0) {
+        type = c;
+        break;
+      }
+    }
+    return s.copyWith(
+      nextId: s.nextId + 1,
+      chests:
+          List.unmodifiable([...s.chests, Chest(id: s.nextId, type: type.id)]),
+    );
+  }
+
+  ChestDef chestDef(Chest chest) => content.chestOrNull(chest.type)!;
+
+  /// When [chest] can be opened, or null while it is still locked.
+  DateTime? chestReadyAt(Chest chest) =>
+      chest.unlockStartedAt?.add(chestDef(chest).unlockTime);
+
+  bool isChestReady(Chest chest, DateTime now) {
+    final at = chestReadyAt(chest);
+    return at != null && !at.isAfter(now);
+  }
+
+  bool isChestUnlocking(Chest chest, DateTime now) =>
+      chest.unlockStartedAt != null && !isChestReady(chest, now);
+
+  /// Time left until [chest] opens (its full unlock time while locked).
+  Duration chestRemaining(Chest chest, DateTime now) {
+    final at = chestReadyAt(chest);
+    if (at == null) return chestDef(chest).unlockTime;
+    final left = at.difference(now);
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// Starts unlocking a chest. Only one chest unlocks at a time.
+  GameState startChestUnlock(GameState s, int chestId, DateTime now) {
+    final chest = _chest(s, chestId);
+    if (chest.unlockStartedAt != null) {
+      throw const GameRuleException('This chest is already unlocking');
+    }
+    if (s.chests.any((c) => isChestUnlocking(c, now))) {
+      throw const GameRuleException(
+          'Another chest is unlocking. One at a time!');
+    }
+    return s.copyWith(
+      chests: List.unmodifiable([
+        for (final c in s.chests)
+          c.id == chestId ? c.copyWith(unlockStartedAt: now) : c
+      ]),
+    );
+  }
+
+  /// Opens a ready chest and pays out its contents.
+  ChestOpening openChest(GameState s, int chestId, DateTime now) {
+    final chest = _chest(s, chestId);
+    if (!isChestReady(chest, now)) {
+      throw const GameRuleException("This chest isn't ready yet");
+    }
+    final def = chestDef(chest);
+    final cash = max(
+        def.minCash,
+        incomePerSecond(s) *
+            def.cashIncomeSeconds *
+            (0.8 + 0.4 * _random.nextDouble()));
+
+    // Free levels go to random learned skills.
+    final learned = s.skillLevels.keys.toList();
+    final bonus = <int, int>{};
+    for (var i = 0; i < def.skillLevels && learned.isNotEmpty; i++) {
+      final id = learned[_random.nextInt(learned.length)];
+      bonus[id] = (bonus[id] ?? 0) + 1;
+    }
+
+    final next = s.copyWith(
+      balance: s.balance + cash,
+      energy: min(Balance.maxEnergy, s.energy + def.energy),
+      skillLevels: Map.unmodifiable({
+        for (final e in s.skillLevels.entries)
+          e.key: e.value + (bonus[e.key] ?? 0)
+      }),
+      chests: List.unmodifiable(s.chests.where((c) => c.id != chestId)),
+      stats: s.stats.copyWith(chestsOpened: s.stats.chestsOpened + 1),
+    );
+    return ChestOpening(next,
+        chest: def, cash: cash, energy: def.energy, skillLevels: bonus);
+  }
+
+  Chest _chest(GameState s, int id) {
+    for (final c in s.chests) {
+      if (c.id == id) return c;
+    }
+    throw const GameRuleException('Chest not found');
+  }
+
+  // ---- Rebrand (prestige) -------------------------------------------------
+
+  /// Stars a run with [runEarnings] is worth.
+  int starsFor(double runEarnings) =>
+      sqrt(max(0, runEarnings) / Balance.rebrandEarningsPerStar).floor();
+
+  /// Stars the player would gain by rebranding now.
+  int pendingStars(GameState s) => starsFor(s.stats.runEarnings);
+
+  /// Starts over with more reputation. Keeps stars, achievements, stats,
+  /// chests and the daily streak; resets money, skills, upgrades, cities,
+  /// staff, contracts and campaigns.
+  GameState rebrand(GameState s, DateTime now) {
+    final gained = pendingStars(s);
+    if (gained < 1) {
+      throw GameRuleException('Earn ${dollar(_nextStarAt(s))} this run '
+          'to gain your first star');
+    }
+    final fresh = newGame(now);
+    return fresh.copyWith(
+      startedAt: s.startedAt,
+      nextId: max(fresh.nextId, s.nextId),
+      reputation: s.reputation + gained,
+      chests: s.chests,
+      achievementsUnlocked: s.achievementsUnlocked,
+      achievementsClaimed: s.achievementsClaimed,
+      dailyStreak: s.dailyStreak,
+      lastDailyClaim: s.lastDailyClaim,
+      stats: s.stats.copyWith(runEarnings: 0, rebrands: s.stats.rebrands + 1),
+    );
+  }
+
+  /// Run earnings needed for one more star than [pendingStars].
+  double nextStarEarnings(GameState s) => _nextStarAt(s);
+
+  double _nextStarAt(GameState s) {
+    final next = pendingStars(s) + 1;
+    return next * next * Balance.rebrandEarningsPerStar;
   }
 
   /// Starts [campaignId] in [locationId] until `now + duration`.
@@ -871,8 +1055,30 @@ class GameEngine {
 
   // ---- Debug helpers (settings menu in debug builds) ------------------------
 
-  GameState debugAddMoney(GameState s, double amount) =>
-      s.copyWith(balance: s.balance + amount);
+  /// Debug cheat: money that counts as earned this run (so it also moves
+  /// the Rebrand progress).
+  GameState debugAddMoney(GameState s, double amount) => s.copyWith(
+        balance: s.balance + amount,
+        stats: s.stats.copyWith(runEarnings: s.stats.runEarnings + amount),
+      );
+
+  /// Debug cheat: a random chest, already unlocked.
+  GameState debugAddChest(GameState s, DateTime now) {
+    if (s.chests.length >= Balance.chestSlots || content.chests.isEmpty) {
+      return s;
+    }
+    final type = content.chests[_random.nextInt(content.chests.length)];
+    return s.copyWith(
+      nextId: s.nextId + 1,
+      chests: List.unmodifiable([
+        ...s.chests,
+        Chest(
+            id: s.nextId,
+            type: type.id,
+            unlockStartedAt: now.subtract(type.unlockTime)),
+      ]),
+    );
+  }
 
   GameState debugRefillEnergy(GameState s) =>
       s.copyWith(energy: Balance.maxEnergy);

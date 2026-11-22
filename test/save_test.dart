@@ -103,6 +103,34 @@ void main() {
     engine.upgradeItemLevel(old.copyWith(balance: 1e6), laptop.id);
   });
 
+  test('reputation, chests and run stats survive a round trip', () async {
+    final engine = testEngine();
+    final s = engine.newGame(t0).copyWith(
+          reputation: 7,
+          chests: [Chest(id: 5, type: 'silver', unlockStartedAt: t0)],
+          stats:
+              const GameStats(runEarnings: 123, rebrands: 2, chestsOpened: 3),
+        );
+    final repo = SaveRepository(MemorySaveStore());
+    await repo.save(s);
+    final loaded = (await repo.load())!;
+    expect(jsonEncode(loaded.toJson()), jsonEncode(s.toJson()));
+  });
+
+  test('older saves count all earnings so far as the current run', () {
+    final json = testEngine().newGame(t0).toJson();
+    (json['stats'] as Map)
+      ..['lifetimeEarnings'] = 5e6
+      ..remove('runEarnings');
+    json
+      ..remove('reputation')
+      ..remove('chests');
+    final old = GameState.fromJson(jsonDecode(jsonEncode(json)));
+    expect(old.stats.runEarnings, 5e6);
+    expect(old.reputation, 0);
+    expect(old.chests, isEmpty);
+  });
+
   test('a corrupt save is backed up instead of crashing', () async {
     final store = MemorySaveStore('{"version": 1, "balance": "lots"}');
     final loaded = await SaveRepository(store).load();

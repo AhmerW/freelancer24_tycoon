@@ -104,6 +104,21 @@ GameState _playTurn(
     s = engine.claimDailyReward(s, now);
   }
 
+  // Open ready chests and keep one unlocking.
+  for (final chest in s.chests.toList()) {
+    if (engine.isChestReady(chest, now)) {
+      s = engine.openChest(s, chest.id, now).state;
+    }
+  }
+  if (!s.chests.any((c) => engine.isChestUnlocking(c, now))) {
+    for (final chest in s.chests) {
+      if (chest.unlockStartedAt == null) {
+        s = engine.startChestUnlock(s, chest.id, now);
+        break;
+      }
+    }
+  }
+
   for (final c in s.contracts.where((c) => c.isCompleted).toList()) {
     s = engine.collectContract(s, c.id);
   }
