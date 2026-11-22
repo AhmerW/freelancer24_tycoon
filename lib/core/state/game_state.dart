@@ -62,6 +62,9 @@ class Contract {
   final bool project;
   final ContractStatus status;
   final DateTime? acceptedAt;
+
+  /// When an offer leaves if nobody takes it (VIP clients), or null.
+  final DateTime? expiresAt;
   final List<int> assignees;
 
   /// Pay after employee cuts. Fixed when the contract is accepted.
@@ -81,6 +84,7 @@ class Contract {
     this.project = false,
     this.status = ContractStatus.offer,
     this.acceptedAt,
+    this.expiresAt,
     this.assignees = const [],
     this.netPay = 0,
   });
@@ -90,6 +94,10 @@ class Contract {
   bool get isCompleted => status == ContractStatus.completed;
   bool get includesPlayer => assignees.contains(kPlayerId);
   bool get includesAi => assignees.contains(kAiId);
+
+  /// Whether this is an offer whose client has given up waiting.
+  bool isExpired(DateTime now) =>
+      isOffer && expiresAt != null && !expiresAt!.isAfter(now);
 
   DateTime? get finishesAt => acceptedAt?.add(duration);
 
@@ -109,6 +117,26 @@ class Contract {
         now.difference(acceptedAt!).inMilliseconds / duration.inMilliseconds;
     return done.clamp(0.0, 1.0);
   }
+
+  /// This offer with a deadline (used to repair VIPs from older saves).
+  Contract withExpiry(DateTime at) => Contract(
+        id: id,
+        locationId: locationId,
+        client: client,
+        message: message,
+        pay: pay,
+        duration: duration,
+        energy: energy,
+        requiredPeople: requiredPeople,
+        requirements: requirements,
+        golden: golden,
+        project: project,
+        status: status,
+        acceptedAt: acceptedAt,
+        expiresAt: at,
+        assignees: assignees,
+        netPay: netPay,
+      );
 
   Contract copyWith({
     ContractStatus? status,
@@ -130,6 +158,7 @@ class Contract {
         project: project,
         status: status ?? this.status,
         acceptedAt: acceptedAt ?? this.acceptedAt,
+        expiresAt: expiresAt,
         assignees: assignees ?? this.assignees,
         netPay: netPay ?? this.netPay,
       );
@@ -152,6 +181,9 @@ class Contract {
         acceptedAt: json['acceptedAt'] == null
             ? null
             : DateTime.parse(json['acceptedAt'] as String),
+        expiresAt: json['expiresAt'] == null
+            ? null
+            : DateTime.parse(json['expiresAt'] as String),
         assignees: List<int>.unmodifiable(json['assignees'] as List? ?? []),
         netPay: (json['netPay'] as num?)?.toDouble() ?? 0,
       );
@@ -170,6 +202,7 @@ class Contract {
         'project': project,
         'status': status.name,
         'acceptedAt': acceptedAt?.toIso8601String(),
+        if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
         'assignees': assignees,
         'netPay': netPay,
       };

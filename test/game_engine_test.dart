@@ -58,7 +58,8 @@ void main() {
       expect(s.locations[berlin.id]!.employeeSlots, 0);
     });
 
-    test('without staff, every offer can be done by the player alone', () {
+    test('without staff, every regular offer can be done by the player alone',
+        () {
       for (var seed = 0; seed < 50; seed++) {
         final e = testEngine(seed: seed);
         // A mid-game player with several skills at various levels.
@@ -67,7 +68,9 @@ void main() {
           contracts: const [],
         );
         s = e.advance(s, t0.add(const Duration(seconds: 1))).state;
-        for (final offer in s.offersAt(content.startingLocation.id)) {
+        for (final offer in s
+            .offersAt(content.startingLocation.id)
+            .where((o) => !o.golden)) {
           expect(offer.requiredPeople, 1);
           expect(offer.requirements, isNotEmpty);
           expect(e.teamCovers(s, offer, const [kPlayerId]), isTrue,
@@ -1270,6 +1273,147 @@ void main() {
       expect(loaded.projectsAt(city.id), hasLength(1));
       expect(loaded.locations[city.id]!.nextProjectAt,
           s.locations[city.id]!.nextProjectAt);
+    });
+  });
+
+  group('offers and VIP clients', () {
+    // Plays [hours] of offer flow in Berlin for a mid-game player, taking no
+    // offers, and returns every offer that showed up.
+    List<Contract> offersSeen(GameEngine e, {int minutes = 600}) {
+      var s = e.newGame(t0).copyWith(
+        skillLevels: {0: 12, 1: 7, 2: 3, 3: 1},
+        contracts: const [],
+      );
+      final seen = <int, Contract>{};
+      for (var m = 0; m <= minutes; m++) {
+        final now = t0.add(Duration(minutes: m));
+        s = e.advance(s, now).state;
+        for (final o in s.offersAt(content.startingLocation.id)) {
+          seen[o.id] = o;
+        }
+        // Decline regular offers so new ones keep coming.
+        for (final o in s.offersAt(content.startingLocation.id)) {
+          if (!o.golden) s = e.rejectOffer(s, o.id, now);
+        }
+      }
+      return seen.values.toList();
+    }
+
+    test('a city shows at most its max offers and one VIP at a time', () {
+      final e = testEngine(seed: 3);
+      var s = e.newGame(t0);
+      for (var m = 0; m < 240; m++) {
+        s = e.advance(s, t0.add(Duration(minutes: m))).state;
+        final offers = s.offersAt(content.startingLocation.id);
+        expect(offers.length,
+            lessThanOrEqualTo(content.startingLocation.maxOffers));
+        expect(offers.where((o) => o.golden).length, lessThanOrEqualTo(1));
+      }
+    });
+
+    test('VIPs ask for a skill a few levels above the player and leave', () {
+      final e = testEngine(seed: 11);
+      final vips = offersSeen(e).where((o) => o.golden).toList();
+      expect(vips, isNotEmpty);
+      const levels = {0: 12, 1: 7, 2: 3, 3: 1};
+      for (final vip in vips) {
+        final stretch = vip.requirements.where((r) =>
+            r.level > (levels[r.skillId] ?? 0) &&
+            r.level <= (levels[r.skillId] ?? 0) + Balance.vipStretchMax);
+        expect(stretch, isNotEmpty,
+            reason: vip.requirements.map((r) => r.toJson()).toString());
+        expect(vip.expiresAt, isNotNull);
+      }
+    });
+
+    test('an expired VIP is gone on the next tick', () {
+      final e = testEngine(seed: 11);
+      var s = e.newGame(t0).copyWith(skillLevels: {0: 12}, contracts: const []);
+      Contract? vip;
+      var now = t0;
+      for (var m = 0; m < 600 && vip == null; m++) {
+        now = t0.add(Duration(minutes: m));
+        s = e.advance(s, now).state;
+        vip = s
+            .offersAt(content.startingLocation.id)
+            .where((o) => o.golden)
+            .firstOrNull;
+        for (final o in s.offersAt(content.startingLocation.id)) {
+          if (!o.golden) s = e.rejectOffer(s, o.id, now);
+        }
+      }
+      expect(vip, isNotNull);
+      s = e
+          .advance(s, vip!.expiresAt!.subtract(const Duration(seconds: 1)))
+          .state;
+      expect(s.contract(vip.id), isNotNull);
+      s = e.advance(s, vip.expiresAt!).state;
+      expect(s.contract(vip.id), isNull);
+    });
+
+    test('VIPs from older saves get a deadline on the next tick', () {
+      final old = Contract(
+        id: 4242,
+        locationId: content.startingLocation.id,
+        client: 'Old VIP',
+        message: '',
+        pay: 1,
+        duration: const Duration(minutes: 1),
+        energy: 1,
+        requiredPeople: 1,
+        requirements: const [],
+        golden: true,
+      );
+      var s = engine.newGame(t0).copyWith(contracts: [old]);
+      final now = t0.add(const Duration(seconds: 1));
+      s = engine.advance(s, now).state;
+      expect(s.contract(4242)!.expiresAt, now.add(Balance.vipOfferLifetime));
+    });
+
+    test('a VIP expiry survives a save round trip', () {
+      final vip = Contract(
+        id: 1,
+        locationId: 0,
+        client: 'V',
+        message: '',
+        pay: 1,
+        duration: const Duration(minutes: 1),
+        energy: 1,
+        requiredPeople: 1,
+        requirements: const [],
+        golden: true,
+        expiresAt: t0,
+      );
+      expect(Contract.fromJson(vip.toJson()).expiresAt, t0);
+    });
+  });
+
+  group('rebrand guidance', () {
+    GameState withRun(double earnings, {int stars = 0}) =>
+        engine.newGame(t0).copyWith(
+            reputation: stars,
+            stats: engine.newGame(t0).stats.copyWith(runEarnings: earnings));
+
+    test('shows the income multiplier of rebranding now', () {
+      // 10 stars pending, none owned: x1.2.
+      expect(
+          engine.rebrandIncomeMultiplier(withRun(100e6)), closeTo(1.2, 1e-9));
+      // 10 more on top of 10: 1.4 / 1.2.
+      expect(engine.rebrandIncomeMultiplier(withRun(100e6, stars: 10)),
+          closeTo(1.4 / 1.2, 1e-9));
+    });
+
+    test('recommends rebranding when it at least doubles the stars', () {
+      expect(engine.rebrandRecommended(withRun(1e6)), isFalse); // 1 star
+      expect(engine.rebrandRecommended(withRun(100e6)), isTrue); // 10 stars
+      expect(engine.rebrandRecommended(withRun(100e6, stars: 20)), isFalse);
+      expect(engine.rebrandRecommended(withRun(400e6, stars: 20)), isTrue);
+    });
+
+    test('star achievements unlock from owned stars', () {
+      final s = engine.checkAchievements(withRun(0, stars: 100)).state;
+      expect(s.achievementsUnlocked, containsAll(['stars_10', 'stars_100']));
+      expect(s.achievementsUnlocked, isNot(contains('stars_1000')));
     });
   });
 }

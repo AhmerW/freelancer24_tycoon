@@ -46,6 +46,10 @@ abstract final class Balance {
   /// Income bonus per reputation star (0.02 = +2%).
   static const double reputationBonusPerStar = 0.02;
 
+  /// The game recommends rebranding once it gains at least this many stars
+  /// and at least as many as the player already has (doubling them).
+  static const int rebrandRecommendMinStars = 10;
+
   // ---- Gift chests ---------------------------------------------------------
 
   static const int chestSlots = 4;
@@ -85,6 +89,14 @@ abstract final class Balance {
   /// duration.
   static const double contractIncomeMultiple = 3;
   static const double goldenChance = 0.1;
+
+  /// A VIP client waits this long before leaving.
+  static const Duration vipOfferLifetime = Duration(minutes: 10);
+
+  /// A VIP asks for one skill this many levels above the player's (1 to 3):
+  /// almost there, so the player levels up (or brings a teammate) to take it.
+  static const int vipStretchMin = 1;
+  static const int vipStretchMax = 3;
   static const double goldenMultiplier = 3;
   static const double extraPersonPayBonus = 0.5;
   static const double perRequirementPayBonus = 0.1;
@@ -96,7 +108,7 @@ abstract final class Balance {
   static const int contractMinSecondsPerSkill = 10;
   static const int contractMaxSecondsBase = 60;
   static const int contractMaxSecondsPerSkill = 120;
-  static const Duration offerCooldown = Duration(seconds: 30);
+  static const Duration offerCooldown = Duration(seconds: 75);
 
   /// Shortest a contract can get with contract-speed upgrades.
   static const int contractMinSeconds = 5;

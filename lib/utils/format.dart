@@ -1,9 +1,21 @@
 /// Formats money as 12.5, 3.4k, 1.2M, 5B, 7T...
+/// Short unit for 1000^[i]: k, M, B, T, Qa, Qi, then aa, ab, ... zz like
+/// other idle games.
+String moneyUnit(int i) {
+  const named = ['', 'k', 'M', 'B', 'T', 'Qa', 'Qi'];
+  if (i < named.length) return named[i];
+  final n = i - named.length;
+  const a = 97; // 'a'
+  return String.fromCharCodes([a + (n ~/ 26) % 26, a + n % 26]);
+}
+
 String formatMoney(double value) {
-  const units = ['', 'k', 'M', 'B', 'T', 'Qa', 'Qi'];
+  if (value.isNaN) return '0';
+  if (value.isInfinite) return value < 0 ? '-∞' : '∞';
   var v = value.abs();
   var unit = 0;
-  while (v >= 1000 && unit < units.length - 1) {
+  // 7 named units + 26*26 letter pairs.
+  while (v >= 1000 && unit < 7 + 26 * 26 - 1) {
     v /= 1000;
     unit++;
   }
@@ -12,7 +24,7 @@ String formatMoney(double value) {
   if (text.contains('.')) {
     text = text.replaceFirst(RegExp(r'\.?0+$'), '');
   }
-  return '${value < 0 ? '-' : ''}$text${units[unit]}';
+  return '${value < 0 ? '-' : ''}$text${moneyUnit(unit)}';
 }
 
 String dollar(num value) => '\$${formatMoney(value.toDouble())}';

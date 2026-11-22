@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +14,10 @@ import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 
 const _starColor = Color(0xFFFFD23F);
+
+/// "1.22" for a 22% boost; whole numbers for big ones ("12").
+String _times(double m) =>
+    m >= 10 ? m.toStringAsFixed(0) : m.toStringAsFixed(2);
 
 String _bonus(int stars) =>
     '+${(stars * Balance.reputationBonusPerStar * 100).round()}%';
@@ -35,10 +41,29 @@ class RebrandCard extends StatelessWidget {
             state.stats.runEarnings >= Balance.rebrandEarningsPerStar * 0.1;
         if (!visible) return const SizedBox.shrink();
 
+        final recommended = engine.rebrandRecommended(state);
+        final multiplier = engine.rebrandIncomeMultiplier(state);
+        // Stars (and run earnings) at which rebranding is recommended.
+        final target = max(Balance.rebrandRecommendMinStars, state.reputation);
+        final targetEarnings = target * target * Balance.rebrandEarningsPerStar;
         final next = engine.nextStarEarnings(state);
         final prev = pending * pending * Balance.rebrandEarningsPerStar;
-        final progress = (state.stats.runEarnings - prev) /
-            (next - prev).clamp(1, double.infinity);
+        final progress = recommended
+            ? (state.stats.runEarnings - prev) /
+                (next - prev).clamp(1, double.infinity)
+            : state.stats.runEarnings / targetEarnings;
+
+        final String advice;
+        if (pending == 0) {
+          advice = 'Earn ${dollar(Balance.rebrandEarningsPerStar)} this run '
+              'for ${state.reputation > 0 ? 'a new' : 'your first'} star.';
+        } else if (recommended) {
+          advice = 'Great time to rebrand: income x${_times(multiplier)} '
+              'forever!';
+        } else {
+          advice = 'Rebranding now only gives x${_times(multiplier)}. '
+              'Wait for +$target ★ (at ${dollar(targetEarnings)} this run).';
+        }
 
         return GamePanel(
           title: 'REBRAND',
@@ -60,29 +85,68 @@ class RebrandCard extends StatelessWidget {
                         'all income forever.',
                 style: GameFonts.body(size: 13),
               ),
+              const SizedBox(height: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: recommended
+                      ? const Color(0xFFDDF7D2)
+                      : const Color(0xFFEDE3FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: recommended
+                          ? const Color(0xFF2B8A1C)
+                          : GameTone.purple.lip.withValues(alpha: 0.4),
+                      width: 2),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                        recommended
+                            ? Icons.thumb_up_alt_rounded
+                            : Icons.lightbulb_outline,
+                        size: 18,
+                        color: recommended
+                            ? const Color(0xFF2B8A1C)
+                            : GameTone.purple.lip),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(advice,
+                          style: GameFonts.body(
+                              size: 13, weight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               GameProgressBar(
                 value: progress,
-                tone: GameTone.purple,
+                tone: recommended ? GameTone.green : GameTone.purple,
                 height: 22,
-                label: 'Next star at ${dollar(next)}',
+                label: recommended
+                    ? 'Next star at ${dollar(next)}'
+                    : '+$pending/$target ★',
               ),
               const SizedBox(height: 10),
               Builder(
                 builder: (buttonContext) {
                   final button = GameButton(
-                    tone: pending > 0 ? GameTone.yellow : GameTone.grey,
-                    shine: pending > 0,
+                    tone: recommended
+                        ? GameTone.yellow
+                        : pending > 0
+                            ? GameTone.blue
+                            : GameTone.grey,
+                    shine: recommended,
                     icon: Icons.auto_awesome,
-                    label: pending > 0
-                        ? 'REBRAND  +$pending ★'
-                        : 'EARN ${dollar(Balance.rebrandEarningsPerStar)} THIS RUN',
-                    fontSize: pending > 0 ? 18 : 14,
+                    label:
+                        pending > 0 ? 'REBRAND  +$pending ★' : 'NO STARS YET',
+                    fontSize: 18,
                     onPressed: pending > 0
                         ? () => _confirm(buttonContext, pending)
                         : null,
                   );
-                  return pending > 0
+                  return recommended
                       ? button
                           .animate(onPlay: (c) => c.repeat(reverse: true))
                           .scaleXY(begin: 0.98, end: 1.02, duration: 700.ms)
@@ -131,7 +195,8 @@ class RebrandCard extends StatelessWidget {
               Center(
                 child: Text(
                   '+$pending star${pending == 1 ? '' : 's'}: '
-                  '${_bonus(total)} income forever',
+                  '${_bonus(total)} income forever '
+                  '(x${_times(game.engine.rebrandIncomeMultiplier(game.state))})',
                   textAlign: TextAlign.center,
                   style: GameFonts.display(size: 18, color: GameColors.ink),
                 ),
@@ -141,6 +206,12 @@ class RebrandCard extends StatelessWidget {
                   'Resets money, skills, upgrades, AI, cities, staff and jobs.'),
               _Line(Icons.check_circle, GameColors.good,
                   'Keeps stars, goals, gift chests and your daily streak.'),
+              if (!game.engine.rebrandRecommended(game.state))
+                _Line(
+                    Icons.lightbulb,
+                    GameTone.purple.lip,
+                    'Tip: it is early. Waiting until it doubles your stars '
+                    'makes it much stronger.'),
               const SizedBox(height: 14),
               Row(
                 children: [

@@ -39,6 +39,13 @@ CoachTip? coachTipFor(GameState s, GameCubit game) {
         'Ka-ching! A job is done. Open the city and COLLECT your pay.',
         HomeTabs.world);
   }
+  if (s.stats.rebrands == 0 && game.engine.rebrandRecommended(s)) {
+    final x = game.engine.rebrandIncomeMultiplier(s).toStringAsFixed(1);
+    return CoachTip(
+        'Your name is worth a lot now! REBRAND in the World tab: start over '
+        'with x$x income forever.',
+        HomeTabs.world);
+  }
   final graduated = contracts >= 3 && skills >= 3 && s.hiredCount > 0;
   if (graduated) return null;
 

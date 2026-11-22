@@ -77,6 +77,17 @@ class _OfferViewState extends State<OfferView> {
           '${offer.requiredPeople == 1 ? 'person' : 'people'} below';
     }
     if (!game.engine.teamCovers(state, offer, _selected)) {
+      if (offer.golden) {
+        // Name the skill the VIP wants a bit more of.
+        for (final r in offer.requirements) {
+          final have = game.engine.bestLevel(state, _selected, r.skillId);
+          if (have < r.level) {
+            return 'VIP wants ${game.content.skill(r.skillId).name} '
+                'Lv ${r.level} (team: $have). Level it up in Skills before '
+                'they leave!';
+          }
+        }
+      }
       return 'Missing skills: level up or pick someone who has them';
     }
     if (_selected.contains(kPlayerId) && state.energy < offer.energy) {
@@ -181,6 +192,13 @@ class _OfferViewState extends State<OfferView> {
                   label: '${offer.requiredPeople}',
                   color: const Color(0xFFE65100),
                   tooltip: 'People needed'),
+              if (offer.expiresAt != null)
+                StatChip(
+                    icon: Icons.hourglass_bottom,
+                    label: 'leaves in '
+                        '${formatDuration(offer.expiresAt!.difference(game.now()))}',
+                    color: GameColors.bad,
+                    tooltip: 'VIP clients do not wait forever'),
             ],
           ),
           const SizedBox(height: 10),

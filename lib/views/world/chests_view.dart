@@ -121,6 +121,7 @@ class _ChestSlot extends StatelessWidget {
     } else if (unlocking) {
       footer = Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           GameProgressBar(
             value: 1 - remaining.inSeconds / max(1, def.unlockTime.inSeconds),
@@ -128,8 +129,11 @@ class _ChestSlot extends StatelessWidget {
             height: 10,
           ),
           const SizedBox(height: 2),
-          Text(formatDuration(remaining),
-              style: GameFonts.display(size: 12, color: GameColors.ink)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(formatDuration(remaining),
+                style: GameFonts.display(size: 12, color: GameColors.ink)),
+          ),
         ],
       );
     } else {
@@ -180,7 +184,10 @@ class _ChestSlot extends StatelessWidget {
           child: Column(
             children: [
               Expanded(child: Center(child: art)),
-              FittedBox(child: footer),
+              // The timer bar needs a bounded width; only text may scale down.
+              unlocking
+                  ? SizedBox(width: double.infinity, child: footer)
+                  : FittedBox(child: footer),
             ],
           ),
         ),

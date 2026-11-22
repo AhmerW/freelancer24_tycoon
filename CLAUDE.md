@@ -82,7 +82,14 @@ Run `dart format lib test` before committing.
 - Rebrand (prestige): `stats.runEarnings` buys reputation stars
   (`sqrt(runEarnings / Balance.rebrandEarningsPerStar)`); each star adds
   `Balance.reputationBonusPerStar` income. Rebranding resets the run but keeps
-  stars, achievements, chests and the daily streak.
+  stars, achievements, chests and the daily streak. The card recommends
+  rebranding when it at least doubles the stars
+  (`Balance.rebrandRecommendMinStars`); a simulation showed this rule beats
+  never rebranding by 1000x+ within a month.
+- Offers: `maxOffers` per city (2) refill every `Balance.offerCooldown`
+  (sped up by the Internet upgrade and ads). At most one VIP per city; a VIP
+  asks for one skill 1-3 levels above the player's and leaves after
+  `Balance.vipOfferLifetime` (`Contract.expiresAt`).
 - AI assistant: one partner the player hires and levels up (`state.aiLevel`,
   `Balance.ai*`). In assignees it is `kAiId`. It works in any city, uses no
   energy, takes `Balance.aiCut`% of pay, knows a share of the player's skill

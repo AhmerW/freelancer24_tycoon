@@ -530,6 +530,8 @@ class GameEngine {
         AchievementProgress(s.locations.length.toDouble(), c.value),
       AchievementConditionType.campaignsRun =>
         AchievementProgress(stats.campaignsRun.toDouble(), c.value),
+      AchievementConditionType.stars =>
+        AchievementProgress(s.reputation.toDouble(), c.value),
       AchievementConditionType.rebrands =>
         AchievementProgress(stats.rebrands.toDouble(), c.value),
       AchievementConditionType.chestsOpened =>
@@ -1053,6 +1055,16 @@ class GameEngine {
     );
   }
 
+  /// Income after rebranding now, relative to income bonus today (1.2 means
+  /// the reputation bonus makes everything 20% faster than this run).
+  double rebrandIncomeMultiplier(GameState s) =>
+      (1 + (s.reputation + pendingStars(s)) * Balance.reputationBonusPerStar) /
+      (1 + s.reputation * Balance.reputationBonusPerStar);
+
+  /// Whether rebranding now is a good deal: it at least doubles the stars.
+  bool rebrandRecommended(GameState s) =>
+      pendingStars(s) >= max(Balance.rebrandRecommendMinStars, s.reputation);
+
   /// Run earnings needed for one more star than [pendingStars].
   double nextStarEarnings(GameState s) => _nextStarAt(s);
 
@@ -1167,14 +1179,43 @@ class GameEngine {
       final employees = [...state.employees];
       var nextId = state.nextId;
 
+      // Saves from before VIPs could leave: give their VIPs the usual wait.
+      for (var i = 0; i < contracts.length; i++) {
+        final c = contracts[i];
+        if (c.locationId == location.id &&
+            c.isOffer &&
+            c.golden &&
+            c.expiresAt == null) {
+          contracts[i] = c.withExpiry(now.add(Balance.vipOfferLifetime));
+        }
+      }
+      final repaired = contracts.any((c) =>
+          c.locationId == location.id &&
+          c.golden &&
+          c.isOffer &&
+          !state.contracts.contains(c));
+
+      // VIP clients who waited too long leave.
+      final expired = contracts
+          .where((c) => c.locationId == location.id && c.isExpired(now))
+          .length;
+      if (expired > 0) {
+        contracts.removeWhere(
+            (c) => c.locationId == location.id && c.isExpired(now));
+      }
+
       final effects = campaignEffects(state, location.id, now);
       final maxOffers = location.maxOffers + effects.extraOffers;
-      final cooldown = Balance.offerCooldown * effects.offerCooldownMultiplier;
+      final cooldown = offerCooldownAt(state, location.id, now);
       var offers = contracts
           .where((c) => c.locationId == location.id && c.isOffer && !c.project)
           .length;
       while (offers < maxOffers && !progress.nextOfferAt.isAfter(now)) {
-        contracts.add(_generateOffer(state, location, nextId++, effects));
+        // At most one VIP waiting per city.
+        final hasVip = contracts
+            .any((c) => c.locationId == location.id && c.isOffer && c.golden);
+        contracts.add(_generateOffer(state, location, nextId++, effects,
+            allowVip: !hasVip, now: now));
         offers++;
         progress =
             progress.copyWith(nextOfferAt: progress.nextOfferAt.add(cooldown));
@@ -1209,7 +1250,10 @@ class GameEngine {
                 progress.nextCandidateAt.add(Balance.candidateCooldown));
       }
 
-      if (nextId != state.nextId || progress != entry.value) {
+      if (nextId != state.nextId ||
+          progress != entry.value ||
+          expired > 0 ||
+          repaired) {
         state = state.copyWith(
           nextId: nextId,
           contracts: List.unmodifiable(contracts),
@@ -1228,6 +1272,8 @@ class GameEngine {
     int id,
     CampaignEffects effects, {
     bool project = false,
+    bool allowVip = true,
+    DateTime? now,
   }) {
     final unlocked = s.skillLevels.length;
 
@@ -1279,6 +1325,9 @@ class GameEngine {
       pool.add(_pick(upcoming));
     }
     pool.shuffle(_random);
+    final golden = !project &&
+        allowVip &&
+        _random.nextDouble() < Balance.goldenChance + effects.goldenChanceBonus;
     final count = project
         ? min(pool.length, 2 + _random.nextInt(Balance.maxRequirements - 1))
         : 1 + _random.nextInt(min(Balance.maxRequirements, pool.length));
@@ -1290,10 +1339,32 @@ class GameEngine {
               ? _requiredLevel(s.skillLevel(skill.id), canStretch: staff > 0)
               : 1,
         ),
-    ]..sort((a, b) => a.skillId - b.skillId);
-
-    final golden = !project &&
-        _random.nextDouble() < Balance.goldenChance + effects.goldenChanceBonus;
+    ];
+    if (golden) {
+      // VIPs want a bit more than the player has: one learned skill 1-3
+      // levels above the player's level. Level up (or bring a teammate who
+      // has it) before the client leaves.
+      final learned = [
+        for (final skill in content.skills)
+          if (s.isSkillUnlocked(skill.id)) skill,
+      ];
+      final stretch = _pick(learned);
+      requirements
+        ..removeWhere((r) => r.skillId == stretch.id)
+        ..insert(
+            0,
+            SkillRequirement(
+              skillId: stretch.id,
+              level: s.skillLevel(stretch.id) +
+                  Balance.vipStretchMin +
+                  _random.nextInt(
+                      Balance.vipStretchMax - Balance.vipStretchMin + 1),
+            ));
+      if (requirements.length > Balance.maxRequirements) {
+        requirements.removeLast();
+      }
+    }
+    requirements.sort((a, b) => a.skillId - b.skillId);
     final pay = (basePay +
             incomePerSecond(s) *
                 baseSeconds *
@@ -1328,6 +1399,8 @@ class GameEngine {
       requirements: List.unmodifiable(requirements),
       golden: golden,
       project: project,
+      expiresAt:
+          golden && now != null ? now.add(Balance.vipOfferLifetime) : null,
     );
   }
 

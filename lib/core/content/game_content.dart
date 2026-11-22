@@ -340,6 +340,9 @@ enum AchievementConditionType {
   /// Number of learned skills.
   skillsLearned,
 
+  /// Reputation stars owned (from rebranding).
+  stars,
+
   /// Collected contracts.
   contractsCompleted,
 

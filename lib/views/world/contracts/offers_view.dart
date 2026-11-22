@@ -16,7 +16,9 @@ class OffersView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameCubit>();
-    final offers = game.state.offersAt(location.id);
+    // VIP first: it is the one with a clock.
+    final offers = [...game.state.offersAt(location.id)]
+      ..sort((a, b) => (b.golden ? 1 : 0) - (a.golden ? 1 : 0));
     final nextIn =
         game.state.locations[location.id]!.nextOfferAt.difference(game.now());
     final max = location.maxOffers;
