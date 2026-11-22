@@ -330,7 +330,65 @@ class GameEngine {
 
   int _levelOf(GameState s, int personId, int skillId) {
     if (personId == kPlayerId) return s.skillLevel(skillId);
+    if (personId == kAiId) return aiSkillLevel(s, skillId);
     return s.employee(personId)?.levelOf(skillId) ?? 0;
+  }
+
+  // ---- AI assistant ---------------------------------------------------------
+  // A partner the player hires once and levels up. It can join contracts in
+  // any city, never uses energy and takes no cut. It knows a share of every
+  // skill the player has learned; higher levels raise that share and let it
+  // work on more contracts at once.
+
+  bool hasAi(GameState s) => s.aiLevel > 0;
+
+  /// Share of the player's skill levels the AI has.
+  double aiSkillShare(GameState s) => s.aiLevel <= 0
+      ? 0
+      : min(
+          1,
+          Balance.aiSkillShareBase +
+              Balance.aiSkillSharePerLevel * (s.aiLevel - 1));
+
+  /// The AI's level in [skillId]: at least 1 in every skill the player knows.
+  int aiSkillLevel(GameState s, int skillId) {
+    if (!hasAi(s)) return 0;
+    final player = s.skillLevel(skillId);
+    if (player <= 0) return 0;
+    return max(1, (player * aiSkillShare(s)).floor());
+  }
+
+  /// Contracts the AI can work on at the same time.
+  int aiTaskSlots(GameState s) =>
+      Balance.aiTaskLevels.where((l) => l <= s.aiLevel).length;
+
+  /// The next AI level that adds a task slot, or null at the top.
+  int? aiNextSlotLevel(GameState s) {
+    for (final l in Balance.aiTaskLevels) {
+      if (l > s.aiLevel) return l;
+    }
+    return null;
+  }
+
+  /// Running contracts the AI is working on.
+  int aiTasks(GameState s) =>
+      s.contracts.where((c) => c.isActive && c.includesAi).length;
+
+  bool aiAvailable(GameState s) => hasAi(s) && aiTasks(s) < aiTaskSlots(s);
+
+  /// Price of the next AI level (hiring it at level 0); null at max level.
+  double? aiUpgradeCost(GameState s) => s.aiLevel >= Balance.aiMaxLevel
+      ? null
+      : Balance.aiHireCost * pow(Balance.aiUpgradeGrowth, s.aiLevel);
+
+  /// Hires the AI assistant, or levels it up.
+  GameState upgradeAi(GameState s) {
+    final cost = aiUpgradeCost(s);
+    if (cost == null) {
+      throw const GameRuleException('Your AI assistant is fully upgraded');
+    }
+    return _pay(s, cost, s.aiLevel == 0 ? 'hire an AI assistant' : 'upgrade it')
+        .copyWith(aiLevel: s.aiLevel + 1);
   }
 
   // ---- Marketing campaigns --------------------------------------------------
@@ -760,6 +818,17 @@ class GameEngine {
         }
         continue;
       }
+      if (id == kAiId) {
+        if (!hasAi(s)) {
+          throw const GameRuleException('Hire an AI assistant first');
+        }
+        if (!aiAvailable(s)) {
+          throw const GameRuleException(
+              'Your AI assistant is busy. Upgrade it to run more tasks');
+        }
+        cutPercent += Balance.aiCut;
+        continue;
+      }
       final e = s.employee(id);
       if (e == null || !e.isHired || e.locationId != offer.locationId) {
         throw const GameRuleException('That person does not work here');
@@ -790,7 +859,7 @@ class GameEngine {
         for (final e in s.employees)
           team.contains(e.id) ? e.copyWith(contractId: () => contractId) : e
       ]),
-      locations: _bumpOfferTimer(s, offer.locationId, now),
+      locations: _bumpTimerFor(s, offer, now),
     );
   }
 
@@ -800,7 +869,7 @@ class GameEngine {
     return s.copyWith(
       contracts:
           List.unmodifiable(s.contracts.where((c) => c.id != contractId)),
-      locations: _bumpOfferTimer(s, offer.locationId, now),
+      locations: _bumpTimerFor(s, offer, now),
     );
   }
 
@@ -837,7 +906,8 @@ class GameEngine {
         runEarnings: s.stats.runEarnings + contract.netPay,
       ),
     );
-    return _maybeDropChest(collected, vip: contract.golden);
+    // Projects always leave a gift, like VIP clients.
+    return _maybeDropChest(collected, vip: contract.golden || contract.project);
   }
 
   // ---- Gift chests -----------------------------------------------------------
@@ -1101,13 +1171,29 @@ class GameEngine {
       final maxOffers = location.maxOffers + effects.extraOffers;
       final cooldown = Balance.offerCooldown * effects.offerCooldownMultiplier;
       var offers = contracts
-          .where((c) => c.locationId == location.id && c.isOffer)
+          .where((c) => c.locationId == location.id && c.isOffer && !c.project)
           .length;
       while (offers < maxOffers && !progress.nextOfferAt.isAfter(now)) {
         contracts.add(_generateOffer(state, location, nextId++, effects));
         offers++;
         progress =
             progress.copyWith(nextOfferAt: progress.nextOfferAt.add(cooldown));
+      }
+
+      if (location.hasProjects) {
+        var projects = contracts
+            .where((c) => c.locationId == location.id && c.isOffer && c.project)
+            .length;
+        var nextProjectAt = progress.nextProjectAt ?? now;
+        while (projects < location.maxProjects && !nextProjectAt.isAfter(now)) {
+          contracts.add(_generateOffer(state, location, nextId++, effects,
+              project: true));
+          projects++;
+          nextProjectAt = nextProjectAt.add(Balance.projectCooldown);
+        }
+        if (nextProjectAt != progress.nextProjectAt) {
+          progress = progress.copyWith(nextProjectAt: nextProjectAt);
+        }
       }
 
       var candidates = employees
@@ -1123,7 +1209,7 @@ class GameEngine {
                 progress.nextCandidateAt.add(Balance.candidateCooldown));
       }
 
-      if (nextId != state.nextId) {
+      if (nextId != state.nextId || progress != entry.value) {
         state = state.copyWith(
           nextId: nextId,
           contracts: List.unmodifiable(contracts),
@@ -1140,8 +1226,9 @@ class GameEngine {
     GameState s,
     LocationDef location,
     int id,
-    CampaignEffects effects,
-  ) {
+    CampaignEffects effects, {
+    bool project = false,
+  }) {
     final unlocked = s.skillLevels.length;
 
     // Duration grows as the player progresses.
@@ -1149,16 +1236,35 @@ class GameEngine {
         Balance.contractMinSecondsPerSkill * (unlocked - 1);
     final maxSec = Balance.contractMaxSecondsBase +
         Balance.contractMaxSecondsPerSkill * (unlocked - 1);
-    final baseSeconds = minSec + _random.nextInt(maxSec - minSec + 1);
+    final jobSeconds = minSec + _random.nextInt(maxSec - minSec + 1);
+    var baseSeconds = jobSeconds;
+    var basePay = Balance.contractBasePay;
+    if (project) {
+      final length = Balance.projectLengthMin +
+          _random
+              .nextInt(Balance.projectLengthMax - Balance.projectLengthMin + 1);
+      baseSeconds = (jobSeconds * length).clamp(
+          Balance.projectMinDuration.inSeconds,
+          Balance.projectMaxDuration.inSeconds);
+      // The flat part of the pay grows with the length too, so projects pay
+      // more than jobs even early on, when income is tiny.
+      basePay *= baseSeconds / jobSeconds;
+    }
     // Faster laptops shorten the work but not the pay.
     final duration = Duration(
         seconds: max(Balance.contractMinSeconds,
             (baseSeconds / contractSpeedMultiplier(s)).round()));
 
-    // People: 1 until the player has staff here, then up to staff + 1.
+    // People: 1 until the player has helpers (staff here or the AI), then up
+    // to helpers + 1. Projects always need a team.
     final staff = s.hiredAt(location.id).length;
-    final people =
-        1 + _random.nextInt(min(staff, Balance.maxRequiredPeople - 1) + 1);
+    final helpers = staff + (hasAi(s) ? 1 : 0);
+    final people = project
+        ? Balance.projectMinPeople +
+            _random.nextInt(min(max(0, helpers - 1),
+                    Balance.projectMaxPeople - Balance.projectMinPeople) +
+                1)
+        : 1 + _random.nextInt(min(helpers, Balance.maxRequiredPeople - 1) + 1);
 
     // Skill requirements: unlocked skills near the player's level. Without
     // staff here, every offer is doable by the player alone. With staff,
@@ -1173,8 +1279,9 @@ class GameEngine {
       pool.add(_pick(upcoming));
     }
     pool.shuffle(_random);
-    final count =
-        1 + _random.nextInt(min(Balance.maxRequirements, pool.length));
+    final count = project
+        ? min(pool.length, 2 + _random.nextInt(Balance.maxRequirements - 1))
+        : 1 + _random.nextInt(min(Balance.maxRequirements, pool.length));
     final requirements = [
       for (final skill in pool.take(count))
         SkillRequirement(
@@ -1185,10 +1292,14 @@ class GameEngine {
         ),
     ]..sort((a, b) => a.skillId - b.skillId);
 
-    final golden =
+    final golden = !project &&
         _random.nextDouble() < Balance.goldenChance + effects.goldenChanceBonus;
-    final pay = (Balance.contractBasePay +
-            incomePerSecond(s) * baseSeconds * Balance.contractIncomeMultiple) *
+    final pay = (basePay +
+            incomePerSecond(s) *
+                baseSeconds *
+                (project
+                    ? Balance.projectIncomeMultiple
+                    : Balance.contractIncomeMultiple)) *
         effects.payMultiplier *
         clientPayMultiplier(s) *
         location.rate *
@@ -1200,7 +1311,8 @@ class GameEngine {
       id: id,
       locationId: location.id,
       client: _pick(location.names),
-      message: _pick(location.messages),
+      message:
+          project ? _pick(content.projectBriefs) : _pick(location.messages),
       pay: pay,
       duration: duration,
       energy: max(
@@ -1208,12 +1320,14 @@ class GameEngine {
           ((Balance.contractEnergyMin +
                       _random.nextInt(Balance.contractEnergyMax -
                           Balance.contractEnergyMin +
-                          1)) /
+                          1)) *
+                  (project ? Balance.projectEnergyMultiplier : 1) /
                   energySaverMultiplier(s))
               .round()),
       requiredPeople: people,
       requirements: List.unmodifiable(requirements),
       golden: golden,
+      project: project,
     );
   }
 
@@ -1358,6 +1472,26 @@ class GameEngine {
           [for (final e in s.employees) e.id == updated.id ? updated : e]);
 
   /// After an offer is taken or turned down, wait before a new one shows up.
+  Map<int, LocationProgress> _bumpTimerFor(
+          GameState s, Contract offer, DateTime now) =>
+      offer.project
+          ? _bumpProjectTimer(s, offer.locationId, now)
+          : _bumpOfferTimer(s, offer.locationId, now);
+
+  Map<int, LocationProgress> _bumpProjectTimer(
+      GameState s, int locationId, DateTime now) {
+    final p = s.locations[locationId]!;
+    final earliest = now.add(Balance.projectCooldown);
+    final current = p.nextProjectAt;
+    return Map.unmodifiable({
+      ...s.locations,
+      locationId: p.copyWith(
+          nextProjectAt: current != null && current.isAfter(earliest)
+              ? current
+              : earliest),
+    });
+  }
+
   Map<int, LocationProgress> _bumpOfferTimer(
       GameState s, int locationId, DateTime now) {
     final p = s.locations[locationId]!;

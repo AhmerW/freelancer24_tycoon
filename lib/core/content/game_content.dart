@@ -220,6 +220,9 @@ class LocationDef {
   final int maxEmployeeOffers;
   final double employeeSlotPriceRate;
 
+  /// How many big team projects the city offers at once (0 = none).
+  final int maxProjects;
+
   const LocationDef({
     required this.id,
     required this.city,
@@ -239,7 +242,10 @@ class LocationDef {
     required this.employeeSlotPrice,
     required this.maxEmployeeOffers,
     required this.employeeSlotPriceRate,
+    this.maxProjects = 0,
   });
+
+  bool get hasProjects => maxProjects > 0;
 
   factory LocationDef.fromJson(Map<String, dynamic> json) => LocationDef(
         id: json['id'] as int,
@@ -261,6 +267,7 @@ class LocationDef {
         maxEmployeeOffers: json['maxEmployeeOffers'] as int,
         employeeSlotPriceRate:
             (json['employeeSlotPriceRate'] as num).toDouble(),
+        maxProjects: json['maxProjects'] as int? ?? 0,
       );
 }
 
@@ -509,6 +516,9 @@ class GameContent {
   final List<ChestDef> chests;
   final Map<String, ChestDef> _chestsById;
 
+  /// Short descriptions for team projects ("Build an online shop").
+  final List<String> projectBriefs;
+
   final Map<int, SkillDef> _skillsById;
   final Map<String, TrackDef> _tracksById;
   final Map<String, List<SkillDef>> _skillsByTrack;
@@ -525,7 +535,9 @@ class GameContent {
     List<CampaignDef> campaigns = const [],
     List<AchievementDef> achievements = const [],
     List<ChestDef> chests = const [],
+    List<String> projectBriefs = const ['Big team project'],
   })  : chests = List.unmodifiable(chests),
+        projectBriefs = List.unmodifiable(projectBriefs),
         _chestsById = {for (final c in chests) c.id: c},
         tracks = List.unmodifiable(
             [...tracks]..sort((a, b) => a.unlockAtSkills - b.unlockAtSkills)),
@@ -587,9 +599,11 @@ class GameContent {
     final lines = (jsonDecode(upgradesJson)['upgrades'] as List)
         .map((e) => UpgradeLineDef.fromJson(e as Map<String, dynamic>))
         .toList();
-    final locations = (jsonDecode(locationsJson)['locations'] as List)
+    final locationData = jsonDecode(locationsJson) as Map<String, dynamic>;
+    final locations = (locationData['locations'] as List)
         .map((e) => LocationDef.fromJson(e as Map<String, dynamic>))
         .toList();
+    final briefs = (locationData['projectBriefs'] as List?)?.cast<String>();
     final campaigns = marketingJson == null
         ? const <CampaignDef>[]
         : (jsonDecode(marketingJson)['campaigns'] as List)
@@ -613,6 +627,9 @@ class GameContent {
       campaigns: campaigns,
       achievements: achievements,
       chests: chests,
+      projectBriefs: briefs == null || briefs.isEmpty
+          ? const ['Big team project']
+          : briefs,
     );
   }
 

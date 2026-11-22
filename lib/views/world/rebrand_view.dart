@@ -138,7 +138,7 @@ class RebrandCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _Line(Icons.restart_alt, GameColors.bad,
-                  'Resets money, skills, upgrades, cities, staff and jobs.'),
+                  'Resets money, skills, upgrades, AI, cities, staff and jobs.'),
               _Line(Icons.check_circle, GameColors.good,
                   'Keeps stars, goals, gift chests and your daily streak.'),
               const SizedBox(height: 14),

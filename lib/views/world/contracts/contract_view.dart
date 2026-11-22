@@ -23,8 +23,18 @@ class ContractView extends StatelessWidget {
     final done = contract.isCompleted;
 
     final card = GamePanel(
-      color: done ? const Color(0xFFFFF6D8) : GameColors.panel,
-      borderColor: done ? const Color(0xFFB07800) : null,
+      color: done
+          ? const Color(0xFFFFF6D8)
+          : contract.project
+              ? const Color(0xFFF6EEFF)
+              : GameColors.panel,
+      borderColor: done
+          ? const Color(0xFFB07800)
+          : contract.project
+              ? GameTone.purple.lip
+              : null,
+      title: contract.project ? 'PROJECT: ${contract.message}' : null,
+      titleTone: GameTone.purple,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -52,12 +62,18 @@ class ContractView extends StatelessWidget {
                         for (final id in contract.assignees)
                           Padding(
                             padding: const EdgeInsets.only(right: 2),
-                            child: id == kPlayerId
-                                ? const CircleAvatar(
+                            child: id == kPlayerId || id == kAiId
+                                ? CircleAvatar(
                                     radius: 11,
-                                    backgroundColor: Color(0xFF2E8BEA),
-                                    child: Icon(Icons.person,
-                                        size: 15, color: Colors.white))
+                                    backgroundColor: id == kAiId
+                                        ? GameColors.energyDark
+                                        : const Color(0xFF2E8BEA),
+                                    child: Icon(
+                                        id == kAiId
+                                            ? Icons.smart_toy
+                                            : Icons.person,
+                                        size: 15,
+                                        color: Colors.white))
                                 : RandomAvatar(
                                     game.state.employee(id)?.name ?? '?',
                                     width: 22,

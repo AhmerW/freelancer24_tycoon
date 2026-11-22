@@ -115,24 +115,30 @@ class MoneyPill extends StatelessWidget {
         tooltip: 'Your skills earn ${dollar(income)} every second, '
             'even while you are away (at half speed).',
         icon: const CoinIcon(size: 34),
-        child: Row(
-          children: [
-            Expanded(
-              child: RollingNumber(
-                value: balance,
-                format: dollar,
-                // Shrinks rather than truncates long amounts like $4.01M.
-                builder: (text) => FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: StrokeText(text, size: 18, maxLines: 1),
+        // Narrow pills (city screens have a back button) drop the income
+        // rate so the balance stays readable.
+        child: LayoutBuilder(
+          builder: (context, box) => Row(
+            children: [
+              Expanded(
+                child: RollingNumber(
+                  value: balance,
+                  format: dollar,
+                  // Shrinks rather than truncates long amounts like $4.01M.
+                  builder: (text) => FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: StrokeText(text, size: 18, maxLines: 1),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
-            StrokeText('+${dollar(income)}/s',
-                size: 11, color: const Color(0xFF9BF08A)),
-          ],
+              if (box.maxWidth >= 130) ...[
+                const SizedBox(width: 4),
+                StrokeText('+${dollar(income)}/s',
+                    size: 11, color: const Color(0xFF9BF08A)),
+              ],
+            ],
+          ),
         ),
       ),
     );

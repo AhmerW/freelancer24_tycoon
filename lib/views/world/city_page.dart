@@ -12,6 +12,7 @@ import 'package:freelancer24_tycoon/views/skills/skills_widgets.dart';
 import 'package:freelancer24_tycoon/views/widgets/game_hud.dart';
 import 'package:freelancer24_tycoon/views/world/contracts/contracts_view.dart';
 import 'package:freelancer24_tycoon/views/world/contracts/offers_view.dart';
+import 'package:freelancer24_tycoon/views/world/contracts/projects_view.dart';
 import 'package:freelancer24_tycoon/views/world/marketing/campaigns_view.dart';
 import 'package:freelancer24_tycoon/views/world/team/employees_view.dart';
 import 'package:freelancer24_tycoon/views/world/world_view.dart';
@@ -28,8 +29,19 @@ class CityPage extends StatefulWidget {
 
 class _CityPageState extends State<CityPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 4, vsync: this)
-    ..addListener(() => setState(() {}));
+  late final bool _projects = widget.location.hasProjects;
+  late final TabController _tabs;
+
+  @override
+  void initState() {
+    super.initState();
+    // Created here, not lazily: a lazy controller would first be built in
+    // dispose() when the player leaves a locked city, which throws.
+    _tabs = TabController(length: _projects ? 5 : 4, vsync: this)
+      ..addListener(() => setState(() {}));
+  }
+
+  int get _jobsTab => _projects ? 2 : 1;
 
   @override
   void dispose() {
@@ -44,6 +56,8 @@ class _CityPageState extends State<CityPage>
         .select((GameCubit c) => c.state.isLocationUnlocked(location.id));
     final offers =
         context.select((GameCubit c) => c.state.offersAt(location.id).length);
+    final projects =
+        context.select((GameCubit c) => c.state.projectsAt(location.id).length);
     final running = context.select(
         (GameCubit c) => c.state.runningContractsAt(location.id).length);
     final ready = context.select((GameCubit c) => c.state
@@ -101,13 +115,14 @@ class _CityPageState extends State<CityPage>
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                 child: Row(
                   children: [
-                    for (final (i, label, badge) in [
-                      (0, 'Offers $offers', 0),
-                      (1, 'Jobs $running', ready),
-                      (2, 'Team $staff', 0),
-                      (3, 'Ads $ads', 0),
-                    ]) ...[
-                      if (i > 0) const SizedBox(width: 6),
+                    for (final (i, (label, badge)) in [
+                      ('Offers $offers', 0),
+                      if (_projects) ('Projects $projects', 0),
+                      ('Jobs $running', ready),
+                      ('Team $staff', 0),
+                      ('Ads $ads', 0),
+                    ].indexed) ...[
+                      if (i > 0) SizedBox(width: _projects ? 4 : 6),
                       Expanded(
                         child: _CityTab(
                           label: label,
@@ -124,7 +139,11 @@ class _CityPageState extends State<CityPage>
                 child: TabBarView(
                   controller: _tabs,
                   children: [
-                    OffersView(location, onAccepted: () => _tabs.animateTo(1)),
+                    OffersView(location,
+                        onAccepted: () => _tabs.animateTo(_jobsTab)),
+                    if (_projects)
+                      ProjectsView(location,
+                          onAccepted: () => _tabs.animateTo(_jobsTab)),
                     ContractsView(location),
                     EmployeesView(location),
                     CampaignsView(location),
@@ -176,7 +195,11 @@ class _CityTab extends StatelessWidget {
                 BoxShadow(color: tone.lip, offset: const Offset(0, 3))
               ],
             ),
-            child: StrokeText(label, size: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: StrokeText(label, size: 14),
+            ),
           ),
           if (badge > 0)
             Positioned(

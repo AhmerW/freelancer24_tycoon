@@ -83,6 +83,17 @@ Run `dart format lib test` before committing.
   (`sqrt(runEarnings / Balance.rebrandEarningsPerStar)`); each star adds
   `Balance.reputationBonusPerStar` income. Rebranding resets the run but keeps
   stars, achievements, chests and the daily streak.
+- AI assistant: one partner the player hires and levels up (`state.aiLevel`,
+  `Balance.ai*`). In assignees it is `kAiId`. It works in any city, uses no
+  energy, takes `Balance.aiCut`% of pay, knows a share of the player's skill
+  levels and runs more tasks at `Balance.aiTaskLevels`. Rebrand resets it.
+- Projects: cities with `maxProjects` > 0 in `locations.json` (every city
+  but Berlin) offer team projects (`Contract.project`) on their own timer
+  (`LocationProgress.nextProjectAt`, `Balance.projectCooldown`). They need
+  2+ people, last 4-7x a job and always drop a chest. Their pay rate per
+  second is lower than a job's on purpose: they earn while the player is
+  away, so a higher rate would beat the offline cap. Briefs are
+  `projectBriefs` in `locations.json`.
 - `achievements.json`: `condition` `{type, value}` (types in
   `AchievementConditionType`; `trackCompleted` takes a track id as value);
   reward is `rewardIncomeSeconds` of income at claim time, at least

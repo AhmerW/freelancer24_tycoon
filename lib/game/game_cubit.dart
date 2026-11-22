@@ -195,6 +195,17 @@ class GameCubit extends Cubit<GameState> {
     return ok ? opening : null;
   }
 
+  // ---- AI assistant ----------------------------------------------------------
+
+  /// Hires the AI assistant, or upgrades it.
+  bool upgradeAi() {
+    final hiring = state.aiLevel == 0;
+    return _run(
+      engine.upgradeAi,
+      success: hiring ? 'Your AI assistant is online!' : null,
+    );
+  }
+
   // ---- Rebrand ---------------------------------------------------------------
 
   int get pendingStars => engine.pendingStars(state);

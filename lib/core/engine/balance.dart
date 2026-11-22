@@ -117,4 +117,44 @@ abstract final class Balance {
   static const double fireCostOfHireCost = 0.25;
   static const int employeeCutMin = 5;
   static const int employeeCutMax = 25;
+
+  // ---- AI assistant ----------------------------------------------------------
+
+  /// Price to hire the AI assistant (its level 1).
+  static const double aiHireCost = 20000;
+
+  /// Each AI level costs this much more than the one before.
+  static const double aiUpgradeGrowth = 2;
+  static const int aiMaxLevel = 25;
+
+  /// The AI's skill levels are this share of the player's (level 1 and up).
+  static const double aiSkillShareBase = 0.4;
+  static const double aiSkillSharePerLevel = 0.025;
+
+  /// AI levels at which it can work on one more task at the same time.
+  static const List<int> aiTaskLevels = [1, 8, 16, 25];
+
+  /// Percent of a contract's pay the AI costs to run (like an employee's cut).
+  static const int aiCut = 30;
+
+  // ---- Team projects -------------------------------------------------------
+
+  /// A new project offer appears this long after one is taken or declined.
+  static const Duration projectCooldown = Duration(minutes: 15);
+
+  /// A project takes this many times as long as a regular job.
+  static const int projectLengthMin = 4;
+  static const int projectLengthMax = 7;
+  static const Duration projectMinDuration = Duration(minutes: 10);
+  static const Duration projectMaxDuration = Duration(hours: 8);
+
+  /// A project pays this many seconds of income per second of work (jobs pay
+  /// [contractIncomeMultiple]). Lower than jobs on purpose: projects keep
+  /// earning while the player is away, so their rate must not beat the
+  /// offline-income cap by much. In total, one project pays far more than a
+  /// job.
+  static const double projectIncomeMultiple = 1;
+  static const int projectMinPeople = 2;
+  static const int projectMaxPeople = 4;
+  static const int projectEnergyMultiplier = 2;
 }

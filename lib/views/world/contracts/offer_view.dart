@@ -36,7 +36,13 @@ class _OfferViewState extends State<OfferView> {
   void initState() {
     super.initState();
     // Most offers early on are one-person jobs for the player: pre-select them.
-    if (!context.read<GameCubit>().state.playerBusy) _selected.add(kPlayerId);
+    final game = context.read<GameCubit>();
+    if (!game.state.playerBusy) _selected.add(kPlayerId);
+    // Team jobs: bring the AI along when it is free.
+    if (widget.offer.requiredPeople > _selected.length &&
+        game.engine.aiAvailable(game.state)) {
+      _selected.add(kAiId);
+    }
   }
 
   void _toggle(int id, int required) {
@@ -58,6 +64,15 @@ class _OfferViewState extends State<OfferView> {
     final offer = widget.offer;
     final state = game.state;
     if (_selected.length != offer.requiredPeople) {
+      final free = (state.playerBusy ? 0 : 1) +
+          state.hiredAt(offer.locationId).where((e) => !e.isBusy).length +
+          (game.engine.aiAvailable(state) ? 1 : 0);
+      if (free < offer.requiredPeople) {
+        return game.engine.hasAi(state)
+            ? 'Not enough free people: hire staff here or upgrade your AI'
+            : 'Not enough people: hire staff here or an AI assistant '
+                '(Upgrades tab)';
+      }
       return 'Pick ${offer.requiredPeople} '
           '${offer.requiredPeople == 1 ? 'person' : 'people'} below';
     }
@@ -77,22 +92,42 @@ class _OfferViewState extends State<OfferView> {
     final offer = widget.offer;
 
     // Drop people who became busy since they were selected.
-    _selected.removeWhere((id) => id == kPlayerId
-        ? state.playerBusy
-        : (state.employee(id)?.isBusy ?? true));
+    _selected.removeWhere((id) => switch (id) {
+          kPlayerId => state.playerBusy,
+          kAiId => !game.engine.aiAvailable(state),
+          _ => state.employee(id)?.isBusy ?? true,
+        });
     final blocker = _blocker(game);
     final team = _selected.isEmpty ? const [kPlayerId] : _selected;
 
     final card = GamePanel(
-      borderColor: offer.golden ? const Color(0xFFB07800) : null,
-      color: offer.golden ? const Color(0xFFFFF6D8) : GameColors.panel,
-      title: offer.golden ? 'VIP CLIENT · PAYS 3X' : null,
-      titleTone: GameTone.yellow,
+      borderColor: offer.golden
+          ? const Color(0xFFB07800)
+          : offer.project
+              ? GameTone.purple.lip
+              : null,
+      color: offer.golden
+          ? const Color(0xFFFFF6D8)
+          : offer.project
+              ? const Color(0xFFF6EEFF)
+              : GameColors.panel,
+      title: offer.golden
+          ? 'VIP CLIENT · PAYS 3X'
+          : offer.project
+              ? 'TEAM PROJECT'
+              : null,
+      titleTone: offer.project ? GameTone.purple : GameTone.yellow,
       titleTrailing: offer.golden
           ? const Icon(Icons.star, color: Colors.white)
               .animate(onPlay: (c) => c.repeat())
               .rotate(duration: 3.seconds)
-          : null,
+          : offer.project
+              ? const Tooltip(
+                  message: 'Finished projects always leave a gift chest',
+                  triggerMode: TooltipTriggerMode.tap,
+                  child: Icon(Icons.card_giftcard, color: Colors.white),
+                )
+              : null,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,11 +209,20 @@ class _OfferViewState extends State<OfferView> {
             children: [
               _PersonChip(
                 name: 'You',
-                isPlayer: true,
+                icon: Icons.person,
                 busy: state.playerBusy,
                 selected: _selected.contains(kPlayerId),
                 onTap: () => _toggle(kPlayerId, offer.requiredPeople),
               ),
+              if (game.engine.hasAi(state))
+                _PersonChip(
+                  name: 'AI',
+                  icon: Icons.smart_toy,
+                  busy: !game.engine.aiAvailable(state) &&
+                      !_selected.contains(kAiId),
+                  selected: _selected.contains(kAiId),
+                  onTap: () => _toggle(kAiId, offer.requiredPeople),
+                ),
               for (final e in state.hiredAt(widget.location.id))
                 _PersonChip(
                   name: e.name,
@@ -277,14 +321,16 @@ class _RequirementChip extends StatelessWidget {
 
 class _PersonChip extends StatelessWidget {
   final String name;
-  final bool isPlayer;
+
+  /// Shown instead of a generated avatar (the player, the AI).
+  final IconData? icon;
   final bool busy;
   final bool selected;
   final VoidCallback onTap;
 
   const _PersonChip({
     required this.name,
-    this.isPlayer = false,
+    this.icon,
     required this.busy,
     required this.selected,
     required this.onTap,
@@ -319,8 +365,8 @@ class _PersonChip extends StatelessWidget {
             CircleAvatar(
               radius: 14,
               backgroundColor: Colors.white,
-              child: isPlayer
-                  ? const Icon(Icons.person, color: GameColors.ink, size: 20)
+              child: icon != null
+                  ? Icon(icon, color: GameColors.ink, size: 20)
                   : RandomAvatar(name, width: 26, height: 26),
             ),
             const SizedBox(width: 6),

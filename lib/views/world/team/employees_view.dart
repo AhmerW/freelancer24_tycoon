@@ -7,6 +7,7 @@ import 'package:freelancer24_tycoon/views/game_ui/game_panel.dart';
 import 'package:freelancer24_tycoon/views/game_ui/game_theme.dart';
 import 'package:freelancer24_tycoon/views/game_ui/stroke_text.dart';
 import 'package:freelancer24_tycoon/views/skills/skills_widgets.dart';
+import 'package:freelancer24_tycoon/views/upgrades/ai_assistant_view.dart';
 import 'package:freelancer24_tycoon/views/world/team/employee_offers_view.dart';
 import 'package:freelancer24_tycoon/views/world/team/employee_view.dart';
 
@@ -89,6 +90,7 @@ class HiredEmployeesView extends StatelessWidget {
               size: 16),
         ),
         const SizedBox(height: 8),
+        const AiAssistantCard(),
         if (slots == 0 && hired.isEmpty)
           GamePanel(
             color: const Color(0xFFEDE3FF),

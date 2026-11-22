@@ -1066,4 +1066,210 @@ void main() {
       expect(opened.state.stats.chestsOpened, 1);
     });
   });
+
+  group('AI assistant', () {
+    Contract offer({int people = 1, int skillLevel = 1}) => Contract(
+          id: 8888,
+          locationId: content.startingLocation.id,
+          client: 'Test',
+          message: '',
+          pay: 1000,
+          duration: const Duration(minutes: 10),
+          energy: 5,
+          requiredPeople: people,
+          requirements: [
+            SkillRequirement(
+                skillId: content.startingSkill.id, level: skillLevel)
+          ],
+        );
+
+    GameState withOffer(GameState s, Contract c) =>
+        s.copyWith(contracts: [...s.contracts.where((x) => x.id != c.id), c]);
+
+    test('must be hired before it can work', () {
+      final s = withOffer(engine.newGame(t0), offer());
+      expect(engine.hasAi(s), isFalse);
+      expect(() => engine.acceptOffer(s, 8888, const [kAiId], t0),
+          throwsA(isA<GameRuleException>()));
+    });
+
+    test('hiring and upgrading cost more each level', () {
+      var s = rich(engine.newGame(t0));
+      final hire = engine.aiUpgradeCost(s)!;
+      expect(hire, Balance.aiHireCost);
+      s = engine.upgradeAi(s);
+      expect(s.aiLevel, 1);
+      expect(s.balance, 1e12 - hire);
+      expect(engine.aiUpgradeCost(s)!, greaterThan(hire));
+      expect(() => engine.upgradeAi(engine.newGame(t0)),
+          throwsA(isA<GameRuleException>()));
+    });
+
+    test('knows a share of the player skills, at least level 1', () {
+      var s = engine.upgradeAi(rich(engine.newGame(t0)));
+      final html = content.startingSkill.id;
+      s = s.copyWith(skillLevels: {html: 10});
+      expect(engine.aiSkillLevel(s, html), 4); // 40% of 10
+      s = s.copyWith(skillLevels: {html: 1});
+      expect(engine.aiSkillLevel(s, html), 1);
+      final unknown = content.skills.last.id;
+      expect(engine.aiSkillLevel(s, unknown), 0);
+      // Higher AI levels know more.
+      s = s.copyWith(aiLevel: Balance.aiMaxLevel, skillLevels: {html: 10});
+      expect(engine.aiSkillLevel(s, html), 10);
+    });
+
+    test('works without energy, takes its cut and has limited slots', () {
+      var s = engine.upgradeAi(rich(engine.newGame(t0)));
+      s = withOffer(s, offer()).copyWith(energy: 0);
+      s = engine.acceptOffer(s, 8888, const [kAiId], t0);
+      final job = s.contract(8888)!;
+      expect(job.isActive, isTrue);
+      expect(job.netPay, closeTo(1000 * (1 - Balance.aiCut / 100), 1e-9));
+      expect(s.energy, 0);
+      expect(engine.aiTasks(s), 1);
+      expect(engine.aiAvailable(s), isFalse);
+
+      // A second task needs the next slot level.
+      final second = offer().copyWith();
+      s = s.copyWith(contracts: [
+        ...s.contracts,
+        Contract(
+          id: 8889,
+          locationId: second.locationId,
+          client: 'Test 2',
+          message: '',
+          pay: 1000,
+          duration: const Duration(minutes: 10),
+          energy: 5,
+          requiredPeople: 1,
+          requirements: second.requirements,
+        ),
+      ]);
+      expect(() => engine.acceptOffer(s, 8889, const [kAiId], t0),
+          throwsA(isA<GameRuleException>()));
+      s = s.copyWith(aiLevel: Balance.aiTaskLevels[1]);
+      expect(engine.aiTaskSlots(s), 2);
+      s = engine.acceptOffer(s, 8889, const [kAiId], t0);
+      expect(engine.aiTasks(s), 2);
+    });
+
+    test('teams up with the player on 2-person jobs in any city', () {
+      var s = engine.upgradeAi(rich(engine.newGame(t0)));
+      s = withOffer(s, offer(people: 2));
+      s = engine.acceptOffer(s, 8888, const [kPlayerId, kAiId], t0);
+      expect(s.contract(8888)!.assignees, containsAll([kPlayerId, kAiId]));
+      expect(s.playerBusy, isTrue);
+    });
+
+    test('rebranding resets it', () {
+      var s = engine.upgradeAi(rich(engine.newGame(t0)));
+      s = s.copyWith(
+          stats: s.stats.copyWith(runEarnings: Balance.rebrandEarningsPerStar));
+      expect(engine.rebrand(s, t0).aiLevel, 0);
+    });
+
+    test('survives a save round trip', () {
+      final s = engine.upgradeAi(rich(engine.newGame(t0)));
+      expect(GameState.fromJson(s.toJson()).aiLevel, 1);
+    });
+  });
+
+  group('team projects', () {
+    LocationDef projectCity() =>
+        content.locations.firstWhere((l) => l.hasProjects);
+
+    test('Berlin has none, later cities do', () {
+      expect(content.startingLocation.hasProjects, isFalse);
+      expect(content.locations.where((l) => l.price > 0),
+          everyElement(predicate<LocationDef>((l) => l.hasProjects)));
+      expect(content.projectBriefs.length, greaterThanOrEqualTo(8));
+    });
+
+    test('a new project city starts with one project, more come later', () {
+      final city = projectCity();
+      var s = engine.unlockLocation(rich(engine.newGame(t0)), city.id, t0);
+      s = engine.advance(s, t0).state;
+      expect(s.projectsAt(city.id), hasLength(1));
+      expect(s.offersAt(city.id), hasLength(city.maxOffers));
+      s = engine.advance(s, t0.add(Balance.projectCooldown)).state;
+      expect(s.projectsAt(city.id), hasLength(city.maxProjects));
+    });
+
+    test('projects need a team, take longer and pay more than jobs', () {
+      final city = projectCity();
+      var s = engine.unlockLocation(rich(engine.newGame(t0)), city.id, t0);
+      s = engine.advance(s, t0.add(const Duration(hours: 1))).state;
+      final project = s.projectsAt(city.id).first;
+      final jobs = s.offersAt(city.id);
+      expect(project.project, isTrue);
+      expect(project.requiredPeople,
+          greaterThanOrEqualTo(Balance.projectMinPeople));
+      expect(project.golden, isFalse);
+      expect(content.projectBriefs, contains(project.message));
+      for (final job in jobs) {
+        expect(project.duration, greaterThan(job.duration));
+      }
+      final avgJobPay =
+          jobs.map((j) => j.pay).reduce((a, b) => a + b) / jobs.length;
+      expect(project.pay, greaterThan(avgJobPay));
+    });
+
+    test('taking a project starts the project timer, not the job timer', () {
+      final city = projectCity();
+      var s = engine.upgradeAi(rich(engine.newGame(t0)));
+      s = engine.unlockLocation(s, city.id, t0);
+      s = engine.advance(s, t0).state;
+      final project = s.projectsAt(city.id).single;
+      // Make sure the pair can do it.
+      s = s.copyWith(skillLevels: {
+        for (final r in project.requirements) r.skillId: 500,
+      }, energy: Balance.maxEnergy);
+      final nextOfferAt = s.locations[city.id]!.nextOfferAt;
+      s = engine.acceptOffer(
+          s,
+          project.id,
+          [kPlayerId, kAiId, ...s.hiredAt(city.id).map((e) => e.id)]
+              .take(project.requiredPeople)
+              .toList(),
+          t0);
+      expect(s.contract(project.id)!.isActive, isTrue);
+      expect(s.locations[city.id]!.nextOfferAt, nextOfferAt);
+      expect(
+          s.locations[city.id]!.nextProjectAt, t0.add(Balance.projectCooldown));
+    });
+
+    test('finished projects always leave a gift chest', () {
+      final city = projectCity();
+      final done = Contract(
+        id: 9999,
+        locationId: city.id,
+        client: 'Test',
+        message: 'Big build',
+        pay: 100,
+        duration: const Duration(hours: 1),
+        energy: 5,
+        requiredPeople: 2,
+        requirements: const [],
+        project: true,
+        status: ContractStatus.completed,
+        acceptedAt: t0,
+        assignees: const [kPlayerId, kAiId],
+        netPay: 100,
+      );
+      final s = engine.collectContract(
+          engine.newGame(t0).copyWith(contracts: [done]), 9999);
+      expect(s.chests, hasLength(1));
+    });
+
+    test('project flag and timer survive a save round trip', () {
+      final city = projectCity();
+      var s = engine.unlockLocation(rich(engine.newGame(t0)), city.id, t0);
+      s = engine.advance(s, t0).state;
+      final loaded = GameState.fromJson(s.toJson());
+      expect(loaded.projectsAt(city.id), hasLength(1));
+      expect(loaded.locations[city.id]!.nextProjectAt,
+          s.locations[city.id]!.nextProjectAt);
+    });
+  });
 }

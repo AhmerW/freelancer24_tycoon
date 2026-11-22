@@ -60,6 +60,7 @@ void main() {
         '${content.achievements.length}, '
         'campaigns ${s.stats.campaignsRun}, '
         'contracts ${s.stats.contractsCompleted}, '
+        'AI level ${s.aiLevel}, '
         'top skill level ${s.skillLevels.values.reduce(max)}, '
         'lifetime ${dollar(s.stats.lifetimeEarnings)}');
 
@@ -137,8 +138,39 @@ GameState _playTurn(
     }
   }
 
+  // The AI assistant: hire it when comfortable, upgrade it when cheap.
+  final aiCost = engine.aiUpgradeCost(s);
+  if (aiCost != null && s.balance >= aiCost * (engine.hasAi(s) ? 10 : 3)) {
+    s = engine.upgradeAi(s);
+    if (s.aiLevel == 1) mark('AI assistant hired', now);
+  }
+
+  // Projects with the AI as partner, then solo jobs for the AI.
+  if (!s.playerBusy && engine.aiAvailable(s)) {
+    for (final p in s.contracts.where((c) => c.isOffer)) {
+      if (p.requiredPeople == 2 &&
+          s.energy >= p.energy &&
+          engine.teamCovers(s, p, const [kPlayerId, kAiId])) {
+        s = engine.acceptOffer(s, p.id, const [kPlayerId, kAiId], now);
+        if (p.project) mark('first project', now);
+        break;
+      }
+    }
+  }
+  while (engine.aiAvailable(s)) {
+    final job = s.contracts
+        .where((c) =>
+            c.isOffer &&
+            !c.project &&
+            c.requiredPeople == 1 &&
+            engine.teamCovers(s, c, const [kAiId]))
+        .firstOrNull;
+    if (job == null) break;
+    s = engine.acceptOffer(s, job.id, const [kAiId], now);
+  }
+
   if (!s.playerBusy) {
-    for (final offer in s.contracts.where((c) => c.isOffer)) {
+    for (final offer in s.contracts.where((c) => c.isOffer && !c.project)) {
       if (offer.requiredPeople == 1 &&
           s.energy >= offer.energy &&
           engine.teamCovers(s, offer, const [kPlayerId])) {

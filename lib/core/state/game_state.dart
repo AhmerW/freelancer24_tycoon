@@ -13,6 +13,9 @@ const int kSaveVersion = 1;
 /// Employee ids start at 1.
 const int kPlayerId = 0;
 
+/// The AI assistant's id in contract assignees.
+const int kAiId = -1;
+
 class SkillRequirement {
   final int skillId;
   final int level;
@@ -54,6 +57,9 @@ class Contract {
   final int requiredPeople;
   final List<SkillRequirement> requirements;
   final bool golden;
+
+  /// A big team project: takes longer, pays more, needs 2+ people.
+  final bool project;
   final ContractStatus status;
   final DateTime? acceptedAt;
   final List<int> assignees;
@@ -72,6 +78,7 @@ class Contract {
     required this.requiredPeople,
     required this.requirements,
     this.golden = false,
+    this.project = false,
     this.status = ContractStatus.offer,
     this.acceptedAt,
     this.assignees = const [],
@@ -82,6 +89,7 @@ class Contract {
   bool get isActive => status == ContractStatus.active;
   bool get isCompleted => status == ContractStatus.completed;
   bool get includesPlayer => assignees.contains(kPlayerId);
+  bool get includesAi => assignees.contains(kAiId);
 
   DateTime? get finishesAt => acceptedAt?.add(duration);
 
@@ -119,6 +127,7 @@ class Contract {
         requiredPeople: requiredPeople,
         requirements: requirements,
         golden: golden,
+        project: project,
         status: status ?? this.status,
         acceptedAt: acceptedAt ?? this.acceptedAt,
         assignees: assignees ?? this.assignees,
@@ -138,6 +147,7 @@ class Contract {
             .map((e) => SkillRequirement.fromJson(e as Map<String, dynamic>))
             .toList(growable: false),
         golden: json['golden'] as bool? ?? false,
+        project: json['project'] as bool? ?? false,
         status: ContractStatus.values.byName(json['status'] as String),
         acceptedAt: json['acceptedAt'] == null
             ? null
@@ -157,6 +167,7 @@ class Contract {
         'requiredPeople': requiredPeople,
         'requirements': requirements.map((e) => e.toJson()).toList(),
         'golden': golden,
+        'project': project,
         'status': status.name,
         'acceptedAt': acceptedAt?.toIso8601String(),
         'assignees': assignees,
@@ -309,21 +320,28 @@ class LocationProgress {
   /// When the next job applicant may appear.
   final DateTime nextCandidateAt;
 
+  /// When the next project offer may appear (cities with projects only).
+  /// Null until the city's first project, which appears right away.
+  final DateTime? nextProjectAt;
+
   const LocationProgress({
     required this.employeeSlots,
     required this.nextOfferAt,
     required this.nextCandidateAt,
+    this.nextProjectAt,
   });
 
   LocationProgress copyWith({
     int? employeeSlots,
     DateTime? nextOfferAt,
     DateTime? nextCandidateAt,
+    DateTime? nextProjectAt,
   }) =>
       LocationProgress(
         employeeSlots: employeeSlots ?? this.employeeSlots,
         nextOfferAt: nextOfferAt ?? this.nextOfferAt,
         nextCandidateAt: nextCandidateAt ?? this.nextCandidateAt,
+        nextProjectAt: nextProjectAt ?? this.nextProjectAt,
       );
 
   factory LocationProgress.fromJson(Map<String, dynamic> json) =>
@@ -331,12 +349,17 @@ class LocationProgress {
         employeeSlots: json['employeeSlots'] as int,
         nextOfferAt: DateTime.parse(json['nextOfferAt'] as String),
         nextCandidateAt: DateTime.parse(json['nextCandidateAt'] as String),
+        nextProjectAt: json['nextProjectAt'] == null
+            ? null
+            : DateTime.parse(json['nextProjectAt'] as String),
       );
 
   Map<String, dynamic> toJson() => {
         'employeeSlots': employeeSlots,
         'nextOfferAt': nextOfferAt.toIso8601String(),
         'nextCandidateAt': nextCandidateAt.toIso8601String(),
+        if (nextProjectAt != null)
+          'nextProjectAt': nextProjectAt!.toIso8601String(),
       };
 }
 
@@ -543,6 +566,9 @@ class GameState {
   /// Reputation stars from rebranding; each boosts income permanently.
   final int reputation;
 
+  /// AI assistant level; 0 until the player hires it.
+  final int aiLevel;
+
   /// Gift chests in the chest slots.
   final List<Chest> chests;
 
@@ -564,6 +590,7 @@ class GameState {
     this.dailyStreak = 0,
     this.lastDailyClaim,
     this.reputation = 0,
+    this.aiLevel = 0,
     this.chests = const [],
   });
 
@@ -587,8 +614,14 @@ class GameState {
     return null;
   }
 
+  /// Regular job offers in [locationId] (projects not included).
   List<Contract> offersAt(int locationId) => contracts
-      .where((c) => c.locationId == locationId && c.isOffer)
+      .where((c) => c.locationId == locationId && c.isOffer && !c.project)
+      .toList(growable: false);
+
+  /// Team project offers in [locationId].
+  List<Contract> projectsAt(int locationId) => contracts
+      .where((c) => c.locationId == locationId && c.isOffer && c.project)
       .toList(growable: false);
 
   /// Active and completed (not yet collected) contracts.
@@ -637,6 +670,7 @@ class GameState {
     int? dailyStreak,
     DateTime? lastDailyClaim,
     int? reputation,
+    int? aiLevel,
     List<Chest>? chests,
   }) =>
       GameState(
@@ -657,6 +691,7 @@ class GameState {
         dailyStreak: dailyStreak ?? this.dailyStreak,
         lastDailyClaim: lastDailyClaim ?? this.lastDailyClaim,
         reputation: reputation ?? this.reputation,
+        aiLevel: aiLevel ?? this.aiLevel,
         chests: chests ?? this.chests,
       );
 
@@ -685,6 +720,7 @@ class GameState {
         'dailyStreak': dailyStreak,
         'lastDailyClaim': lastDailyClaim?.toIso8601String(),
         'reputation': reputation,
+        'aiLevel': aiLevel,
         'chests': chests.map((c) => c.toJson()).toList(),
       };
 
@@ -732,6 +768,7 @@ class GameState {
             ? null
             : DateTime.parse(json['lastDailyClaim'] as String),
         reputation: json['reputation'] as int? ?? 0,
+        aiLevel: json['aiLevel'] as int? ?? 0,
         chests: List.unmodifiable((json['chests'] as List? ?? const [])
             .map((e) => Chest.fromJson(e as Map<String, dynamic>))),
       );
